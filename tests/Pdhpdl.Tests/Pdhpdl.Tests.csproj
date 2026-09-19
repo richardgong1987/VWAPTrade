@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.6" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6" />
+  </ItemGroup>
+
+  <!-- Unit tests for the cBot's pure (cAlgo-free) logic. The classes under test are LINKED in
+       below (never a ProjectReference) so the tests never pull in the cTrader.Automate /
+       cAlgo.API dependency. Only cAlgo-free files may be linked here. -->
+  <ItemGroup Label="Orders under test">
+    <Compile Include="..\..\VWAPTrade\Orders\PdhpdlOrderPlanner.cs" Link="Orders\PdhpdlOrderPlanner.cs" />
+  </ItemGroup>
+
+  <!-- Data models the planner depends on. CAlgoSymbolModel is intentionally excluded: it is the
+       only Models/ file that references cAlgo.API. -->
+  <ItemGroup Label="Models under test">
+    <Compile Include="..\..\VWAPTrade\Models\PendingOrderRequestModel.cs" Link="Models\PendingOrderRequestModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\PdhpdlOrderPlanModel.cs" Link="Models\PdhpdlOrderPlanModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\PdhpdlTradeDirectionModel.cs" Link="Models\PdhpdlTradeDirectionModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\IPdhpdlSymbolModel.cs" Link="Models\IPdhpdlSymbolModel.cs" />
+  </ItemGroup>
+
+</Project>
