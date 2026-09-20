@@ -79,7 +79,6 @@ public class VWAPTrade : Robot {
     [Parameter("输出文件名", DefaultValue = "VWAPTrades.csv", Group = "开发调试")]
     public string FileName { get; set; }
 
-    private PdhpdlLines _pdhpdlLines;
     private PdhpdlSignalDetector _signalDetector;
     private PdhpdlSignalMarkers _signalMarkers;
     private PdhpdlOrderExecutor _orderExecutor;
@@ -109,9 +108,6 @@ public class VWAPTrade : Robot {
         _orderExecutor = new PdhpdlOrderExecutor(this, SymbolName, Bars.TimeFrame.ToString(), OrderLabel.Trim(), planner, riskGuard,
             _csvLogger);
         CancelPendingOrdersOfClearedLevels(tradeLevels);
-
-        _pdhpdlLines = new PdhpdlLines(Chart, tradeLevels);
-        _pdhpdlLines.Draw();
 
         Print("*****PDH/PDL Break and Reverse started.");
     }
@@ -171,7 +167,6 @@ public class VWAPTrade : Robot {
     }
 
     protected override void OnBar() {
-        _pdhpdlLines?.Draw();
         HandleClosedBarSignal();
     }
 

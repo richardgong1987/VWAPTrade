@@ -88,34 +88,6 @@ public double Tp2R { get; set; }
 
 ## Existing classes
 
-### `PdhpdlLines`
-
-Draws PDH / PDL step lines.
-
-Responsibilities:
-
-* Read daily bars using `MarketData.GetBars(TimeFrame.Daily, symbolName)`.
-* For each day, draw:
-
-  * Previous day high as red step line.
-  * Previous day low as lime step line.
-* Uses `Chart.DrawTrendLine`.
-* Keeps chart object names and can clear them.
-
-Important logic:
-
-```csharp
-double pdh = _dailyBars.HighPrices[i - 1];
-double pdl = _dailyBars.LowPrices[i - 1];
-```
-
-This corresponds to Pine Script:
-
-```pine
-high[1]
-low[1]
-```
-
 ### `PdhpdlUtils`
 
 Pure utility class.
@@ -562,7 +534,6 @@ Keep methods small, but do not over-abstract.
 
 Prefer responsibility-based class names:
 
-* `PdhpdlLines`
 * `PdhpdlUtils`
 * `PdhpdlSignal`
 * `PdhpdlSignalMarkers`
