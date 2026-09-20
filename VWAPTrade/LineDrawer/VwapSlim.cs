@@ -11,7 +11,6 @@ namespace cAlgo.Robots;
 // 可见区间。VWAP 本身始终从最早的一根 K 线累积，画多少根不影响数值。
 public class VwapSlim {
     private const string Prefix = "VWAP_SLIM_";
-
     // 与 Pine 脚本同色：当日与前日 #FFEB3B，当周 #9C27B0。
     private static readonly Color DailyColor = Color.FromHex("#FFEB3B");
     private static readonly Color WeeklyColor = Color.FromHex("#9C27B0");
