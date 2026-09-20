@@ -26,36 +26,43 @@ public class VwapSlim {
         TimeFrame.HeikinDaily, TimeFrame.HeikinDay2, TimeFrame.HeikinDay3, TimeFrame.HeikinWeekly, TimeFrame.HeikinMonthly
     };
 
+    // 图上最多保留这么多根 K 线的线段，太老的自动删掉，免得长时间回测堆出几万个图形对象。
+    private const int MaxDrawnBars = 1000;
+
     private readonly Chart _chart;
     private readonly VwapSeries _series;
-    private readonly List<string> _objectNames = new();
+
+    // 按画出的先后排队，超出上限就从最老的开始删。
+    private readonly Queue<string> _objectNames = new();
+
+    // 下一根要补画的 K 线下标。已经画过的线段不会再动，所以每根 K 线只新增两三个图形对象。
+    private int _nextBarIndex;
 
     public VwapSlim(Chart chart, VwapSeries series) {
         _chart = chart;
         _series = series;
     }
 
+    // 已经画在图上的图形对象数量，启动时打进日志，好确认到底有没有画出来。
+    public int DrawnObjectCount => _objectNames.Count;
+
     public void Draw() {
-        Clear();
-
-        if (IsHiddenTimeFrame(_chart.TimeFrame))
+        if (IsHiddenTimeFrame(_chart.TimeFrame)) {
+            Clear();
             return;
-
-        // 每段连接 barIndex-1 与 barIndex，所以从第 1 根开始；右端不超过已算完的最后一根。
-        int firstSegment = Math.Max(_chart.FirstVisibleBarIndex, 1);
-        int lastSegment = Math.Min(_chart.LastVisibleBarIndex, _series.Count - 1);
-
-        for (int barIndex = firstSegment; barIndex <= lastSegment; barIndex++) {
-            VwapSampleModel from = _series[barIndex - 1];
-            VwapSampleModel to = _series[barIndex];
-
-            DrawSegment(DailyStyle, barIndex, from.Daily, to.Daily);
-            DrawSegment(WeeklyStyle, barIndex, from.Weekly, to.Weekly);
-
-            // 前一日 VWAP 在一天之内是常数，只在开新的一天时跳变。那一段竖线没有意义，跳过。
-            if (!to.IsDailySessionStart)
-                DrawSegment(PreviousDailyStyle, barIndex, from.PreviousDaily, to.PreviousDaily);
         }
+
+        // 每段连接 barIndex-1 与 barIndex，所以从第 1 根开始。下标用的是 VwapSeries 的下标，
+        // 也就是这个 cBot 自己的 Bars 下标 —— 不能用 Chart 的可见区间下标，回测时图表里还有
+        // 回测开始之前的历史 K 线，两套下标对不上，会一段都画不出来。
+        int firstBarIndex = Math.Max(_series.Count - MaxDrawnBars, 1);
+
+        for (int barIndex = Math.Max(_nextBarIndex, firstBarIndex); barIndex < _series.Count; barIndex++) {
+            DrawBar(barIndex);
+        }
+
+        _nextBarIndex = Math.Max(_series.Count, 1);
+        TrimOldestObjects();
     }
 
     public void Clear() {
@@ -64,6 +71,25 @@ public class VwapSlim {
         }
 
         _objectNames.Clear();
+        _nextBarIndex = 0;
+    }
+
+    private void DrawBar(int barIndex) {
+        VwapSampleModel from = _series[barIndex - 1];
+        VwapSampleModel to = _series[barIndex];
+
+        DrawSegment(DailyStyle, barIndex, from.Daily, to.Daily);
+        DrawSegment(WeeklyStyle, barIndex, from.Weekly, to.Weekly);
+
+        // 前一日 VWAP 在一天之内是常数，只在开新的一天时跳变。那一段竖线没有意义，跳过。
+        if (!to.IsDailySessionStart)
+            DrawSegment(PreviousDailyStyle, barIndex, from.PreviousDaily, to.PreviousDaily);
+    }
+
+    private void TrimOldestObjects() {
+        while (_objectNames.Count > MaxDrawnBars * 3) {
+            _chart.RemoveObject(_objectNames.Dequeue());
+        }
     }
 
     private void DrawSegment(SeriesStyle style, int barIndex, double from, double to) {
@@ -72,7 +98,7 @@ public class VwapSlim {
 
         string name = $"{Prefix}{style.Key}_{barIndex}";
         _chart.DrawTrendLine(name, barIndex - 1, from, barIndex, to, style.Color, style.Thickness, style.LineStyle);
-        _objectNames.Add(name);
+        _objectNames.Enqueue(name);
     }
 
     private static bool IsHiddenTimeFrame(TimeFrame timeFrame) {

@@ -53,6 +53,9 @@ public class VWAPTrade : Robot {
         _signalMarkers = new SignalMarkers(Chart, Symbol.TickSize);
         _vwapSlim = new VwapSlim(Chart, _vwapSeries);
         _vwapSlim.Draw();
+        // 画不出线时先看这一行：收线 K 线数为 0 就是还没历史数据，图形对象数为 0 就是这个周期不画（日线及以上）。
+        Print("*****VWAP lines | ClosedBars: {0}, ChartObjects: {1}, TimeFrame: {2}", _vwapSeries.Count,
+            _vwapSlim.DrawnObjectCount, Bars.TimeFrame);
 
         _csvLogger = new TradeCsvLogger(ResetTradeLogOnStart, ResolveReportsDirectory(), FileName);
         Print("****CSV logger path: {0}", _csvLogger.FilePath);
