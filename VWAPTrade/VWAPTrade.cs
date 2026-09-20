@@ -5,7 +5,7 @@ using cAlgo.API;
 
 namespace cAlgo.Robots;
 
-[Robot(AccessRights = AccessRights.FullAccess, AddIndicators = true)]
+[Robot(TimeZone = TimeZones.TokyoStandardTime, AccessRights = AccessRights.FullAccess, AddIndicators = false)]
 public class VWAPTrade : Robot {
     [Parameter("订单标签", DefaultValue = "VWAPTrade-label")]
     public string OrderLabel { get; set; }
@@ -63,8 +63,8 @@ public class VWAPTrade : Robot {
         _vwapSlim = new VwapSlim(Chart, _vwapSeries);
         _vwapSlim.Draw();
         // 画不出线时先看这一行：收线 K 线数为 0 就是还没历史数据，图形对象数为 0 就是这个周期不画（日线及以上）。
-        Print("*****VWAP lines | ClosedBars: {0}, ChartObjects: {1}, TimeFrame: {2}", _vwapSeries.Count,
-            _vwapSlim.DrawnObjectCount, Bars.TimeFrame);
+        Print("*****VWAP lines | ClosedBars: {0}, ChartObjects: {1}, TimeFrame: {2}", _vwapSeries.Count, _vwapSlim.DrawnObjectCount,
+            Bars.TimeFrame);
 
         _csvLogger = new TradeCsvLogger(ResetTradeLogOnStart, ResolveReportsDirectory(), FileName);
         Print("****CSV logger path: {0}", _csvLogger.FilePath);
@@ -72,15 +72,16 @@ public class VWAPTrade : Robot {
         var riskGuard = new RiskGuard();
         var symbolModel = new CAlgoSymbolModel(Symbol);
         var planner = new OrderPlanner(symbolModel, riskGuard, settings);
-        _orderExecutor = new OrderExecutor(this, SymbolName, Bars.TimeFrame.ToString(), OrderLabel.Trim(), planner, riskGuard,
-            _csvLogger, symbolModel, settings);
+        _orderExecutor = new OrderExecutor(this, SymbolName, Bars.TimeFrame.ToString(), OrderLabel.Trim(), planner, riskGuard, _csvLogger,
+            symbolModel, settings);
 
         Print("*****VWAP break and reverse started.");
     }
 
     // 风险% 留 0 就等于这个 cBot 不会下任何单，启动时说清楚，免得以为是信号没出。
     private void PrintSettings(TradeSettingsModel settings) {
-        Print("*****Trade settings | RiskPct: {0}, TakeProfitR: {1}, StopOffsetTicks: {2}, BreakevenTriggerR: {3}, BreakevenOffsetTicks: {4}",
+        Print(
+            "*****Trade settings | RiskPct: {0}, TakeProfitR: {1}, StopOffsetTicks: {2}, BreakevenTriggerR: {3}, BreakevenOffsetTicks: {4}",
             settings.RiskPct, settings.TakeProfitR, settings.StopOffsetTicks, settings.BreakevenTriggerR, settings.BreakevenOffsetTicks);
 
         if (settings.RiskPct <= 0.0)
