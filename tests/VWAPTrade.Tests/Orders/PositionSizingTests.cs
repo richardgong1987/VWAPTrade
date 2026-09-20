@@ -85,7 +85,8 @@ namespace VWAPTrade.Tests.Orders {
             Assert.Equal(101.2, plan.EstimatedRiskMoney, precision: 6);
         }
 
-        private static OrderPlanner CreatePlanner(FakeSymbolModel symbol) => new(symbol, new RiskGuard());
+        private static OrderPlanner CreatePlanner(FakeSymbolModel symbol) =>
+            new(symbol, new RiskGuard(), TestSettings.NoStopOffset());
 
         private static FakeSymbolModel Xauusd(double pipValuePerUnit) {
             return new FakeSymbolModel {

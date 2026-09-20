@@ -7,6 +7,7 @@ namespace VWAPTrade.Tests {
     // noise such as 19999.9999999 so an exact budget is not pushed a step off.
     internal sealed class FakeSymbolModel : ISymbolModel {
         public double PipSize { get; init; }
+        public double TickSize { get; init; } = 0.01;
         public double PipValue { get; init; }
         public double LotSize { get; init; }
         public double VolumeStep { get; init; } = 1.0;

@@ -13,6 +13,7 @@ public class CAlgoSymbolModel : ISymbolModel {
     }
 
     public double PipSize => _symbol.PipSize;
+    public double TickSize => _symbol.TickSize;
     public double LotSize => _symbol.LotSize;
     public double VolumeInUnitsMin => _symbol.VolumeInUnitsMin;
     public double VolumeInUnitsMax => _symbol.VolumeInUnitsMax;

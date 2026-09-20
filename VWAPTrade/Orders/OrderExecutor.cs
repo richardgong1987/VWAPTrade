@@ -15,21 +15,26 @@ public class OrderExecutor {
     private readonly string _symbolName;
     private readonly string _timeFrame;
 
-    // Orders are labelled "{OrderLabel}_{level name}", e.g. "VWAPTrade-label_Short1". The level
-    // suffix is what keeps the six levels independent — each one gates on its own label, so several
-    // can hold a position at the same time. The prefix marks this instance's orders, so manual
-    // trades and other bots on the same symbol are ignored.
+    // Orders are labelled "{OrderLabel}_{level name}", e.g. "VWAPTrade-label_VWAP". The level
+    // suffix gates each key level on its own label. The prefix marks this instance's orders, so
+    // manual trades and other bots on the same symbol are ignored.
     private readonly string _strategyLabelPrefix;
 
     private readonly OrderPlanner _planner;
     private readonly RiskGuard _riskGuard;
     private readonly TradeCsvLogger _csvLogger;
+    private readonly ISymbolModel _symbolModel;
+    private readonly TradeSettingsModel _settings;
 
     private readonly Dictionary<int, string> _positionCsvIds = new();
     private readonly Dictionary<int, double> _positionEntryEquities = new();
 
+    // 保本止损要用开仓时的 R（止损距离）来算触发价，所以开仓时记下来，平仓时清掉。
+    private readonly Dictionary<int, double> _positionRiskPrices = new();
+    private readonly HashSet<int> _positionsProtected = new();
+
     public OrderExecutor(Robot robot, string symbolName, string timeFrame, string orderLabel, OrderPlanner planner,
-        RiskGuard riskGuard, TradeCsvLogger csvLogger) {
+        RiskGuard riskGuard, TradeCsvLogger csvLogger, ISymbolModel symbolModel, TradeSettingsModel settings) {
         _robot = robot;
         _symbolName = symbolName;
         _timeFrame = timeFrame;
@@ -37,8 +42,77 @@ public class OrderExecutor {
         _planner = planner;
         _riskGuard = riskGuard;
         _csvLogger = csvLogger;
+        _symbolModel = symbolModel;
+        _settings = settings;
 
         _robot.Positions.Closed += OnPositionClosed;
+    }
+
+    public void ManageOpenPositions() {
+        ApplyBreakevenProtection();
+    }
+
+    // 止盈是开仓时定死的 TakeProfitR×R，已经挂在订单上由券商执行，这里不需要盯。
+    // 持仓期间唯一要做的是浮盈达到 BreakevenTriggerR 时把止损推到保本位。
+    private void ApplyBreakevenProtection() {
+        // 0 = 关闭。必须在这里挡掉：触发距离为 0 会让保护在开仓瞬间就「触发」，然后因为保本价
+        // 落在市价另一侧而被跳过，机会白白消耗掉 —— 看着像没保护，实则是行情决定的哑火。
+        if (_settings.BreakevenTriggerR <= 0.0)
+            return;
+
+        foreach (Position position in _robot.Positions.Where(IsStrategyPosition).ToArray()) {
+            ApplyBreakevenProtection(position);
+        }
+    }
+
+    private void ApplyBreakevenProtection(Position position) {
+        if (_positionsProtected.Contains(position.Id))
+            return;
+
+        if (!_positionRiskPrices.TryGetValue(position.Id, out double riskPrice) || riskPrice <= 0.0)
+            return;
+
+        bool isLong = position.TradeType == TradeType.Buy;
+        double profitDistance = _settings.BreakevenTriggerR * riskPrice;
+        double trigger = isLong ? position.EntryPrice + profitDistance : position.EntryPrice - profitDistance;
+
+        if (!HasReached(isLong, position.CurrentPrice, trigger))
+            return;
+
+        MoveStopToProtection(position, isLong);
+    }
+
+    private static bool HasReached(bool isLong, double price, double targetPrice) {
+        return isLong ? price >= targetPrice : price <= targetPrice;
+    }
+
+    // The position must not turn back into a loss, so the stop moves to the entry price plus a
+    // small offset in the profitable direction.
+    private void MoveStopToProtection(Position position, bool isLong) {
+        // 先记账再动手：券商拒单时也不要每个 tick 重试一次，日志里会留下失败原因。
+        if (!_positionsProtected.Add(position.Id))
+            return;
+
+        double offset = _symbolModel.TickSize * _settings.BreakevenOffsetTicks;
+        double protectiveStop = isLong ? position.EntryPrice + offset : position.EntryPrice - offset;
+
+        // 止损不能落在市价的另一侧：券商会拒单，或者直接把仓位按市价平掉。
+        bool stopIsPastMarket = isLong ? protectiveStop >= position.CurrentPrice : protectiveStop <= position.CurrentPrice;
+
+        if (stopIsPastMarket) {
+            _robot.Print("*****Protective stop skipped | Position: {0}, Stop: {1}, Price: {2}", position.Id, protectiveStop,
+                position.CurrentPrice);
+            return;
+        }
+
+        TradeResult result = _robot.ModifyPosition(position, protectiveStop, position.TakeProfit, ProtectionType.Absolute);
+
+        if (!result.IsSuccessful) {
+            _robot.Print("*****Protective stop failed | Position: {0}, Stop: {1}, Error: {2}", position.Id, protectiveStop, result.Error);
+            return;
+        }
+
+        _robot.Print("*****Protective stop set | Position: {0}, Entry: {1}, Stop: {2}", position.Id, position.EntryPrice, protectiveStop);
     }
 
     public void Stop() {
@@ -113,6 +187,7 @@ public class OrderExecutor {
 
         _positionCsvIds[position.Id] = csvId;
         _positionEntryEquities[position.Id] = planModel.AccountEquity;
+        _positionRiskPrices[position.Id] = planModel.RiskPrice;
         _robot.Print("*****CSV trade record added. Path: {0}", _csvLogger.FilePath);
         return true;
     }
@@ -129,6 +204,8 @@ public class OrderExecutor {
 
         _positionCsvIds.Remove(args.Position.Id);
         _positionEntryEquities.Remove(args.Position.Id);
+        _positionRiskPrices.Remove(args.Position.Id);
+        _positionsProtected.Remove(args.Position.Id);
 
         if (!string.IsNullOrWhiteSpace(closeRecordId))
             _robot.Print("*****CSV close record added. Id: {0}, ProfitLoss: {1}", closeRecordId, args.Position.NetProfit);

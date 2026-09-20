@@ -1,52 +1,43 @@
 using System;
-using System.Collections.Generic;
 
 namespace cAlgo.Robots;
 
 public class MainBiz {
-    // 每一档关键位各自判断：K 线接触到这一档、并且收在正确的一侧，就为这一档产生一个信号。
-    // 一根 K 线同时命中几档就返回几个信号 —— 每一档各自独立持仓（见 OrderExecutor）。
-    public static List<SignalModel> Evaluate(CandleModel current, CandleModel previous, CandleModel earlier,
-        IReadOnlyList<TradeLevelModel> levels) {
+    // 关键位就是图上那条黄线（日 VWAP）。方向已经由 VwapStack 的闸门定好（见 SignalDetector），
+    // 这里只判断形态，以及形态有没有长在关键位上。碰到了就出信号，没碰到就不做。
+    //
+    // 「碰到」只看这个形态自己用到的那几根 K 线：pinbar 一根、吞没两根、分型和孕线三根。
+    // 笼统地拿三根去判断是错的 —— 单根形态会被隔壁那根的触碰放行。
+    public static SignalModel Evaluate(CandleModel current, CandleModel previous, CandleModel earlier, TradeLevelModel level) {
+        if (level == null || !level.IsConfigured)
+            return null;
+
         HanJinSignalScanModel scanResult = HanJinSignals26.Scan(current, previous, earlier);
-        var signals = new List<SignalModel>();
 
-        foreach (TradeLevelModel level in levels) {
-            if (!level.IsConfigured)
-                continue;
-
-            SignalModel signal = level.Side == SignalSideModel.Sell
-                ? MatchShort(level, scanResult, current, previous, earlier)
-                : MatchLong(level, scanResult, current, previous, earlier);
-
-            if (signal != null)
-                signals.Add(signal);
-        }
-
-        return signals;
+        return level.Side == SignalSideModel.Sell
+            ? MatchShort(level, scanResult, current, previous, earlier)
+            : MatchLong(level, scanResult, current, previous, earlier);
     }
 
     /*
         一. 假突破/反转
-           空单开仓条件（关键位在上方时）
-           K线接触到关键位
+           空单开仓条件
+           K线接触到关键位（日 VWAP）
            出现看跌信号：看跌pinbar、看跌吞没、顶分型、孕线下破。
-           看跌信号的收线价格一定要低于关键位
      */
     private static SignalModel MatchShort(TradeLevelModel level, HanJinSignalScanModel scanResult, CandleModel current,
         CandleModel previous, CandleModel earlier) {
-        if (scanResult.Pinbar == SignalSideModel.Sell && Utils.TouchesAndClosesBelow(level.Price, current.Close, current))
+        if (scanResult.Pinbar == SignalSideModel.Sell && Utils.AnyBarTouchesLevel(level.Price, current))
             return CreateSignal(level, "S_Pin_1", current.High, current);
 
-        if (scanResult.Engulf == SignalSideModel.Sell && Utils.TouchesAndClosesBelow(level.Price, current.Close, current, previous))
+        if (scanResult.Engulf == SignalSideModel.Sell && Utils.AnyBarTouchesLevel(level.Price, current, previous))
             return CreateSignal(level, "S_Eng_1", current.High, current);
 
         if (scanResult.FractalTop == SignalSideModel.Sell && Utils.AnyBarIsShort(current) &&
-            Utils.TouchesAndClosesBelow(level.Price, current.Close, current, previous, earlier))
+            Utils.AnyBarTouchesLevel(level.Price, current, previous, earlier))
             return CreateSignal(level, "S_Top_1", previous.High, current);
 
-        if (scanResult.HaramiSingle == SignalSideModel.Sell &&
-            Utils.TouchesAndClosesBelow(level.Price, current.Close, current, previous, earlier))
+        if (scanResult.HaramiSingle == SignalSideModel.Sell && Utils.AnyBarTouchesLevel(level.Price, current, previous, earlier))
             return CreateSignal(level, "S_Harami_1", Math.Max(previous.High, current.High), current);
 
         return null;
@@ -54,25 +45,23 @@ public class MainBiz {
 
     /**
      一. 假突破/反转
-        多单开仓条件（关键位在下方时）
-        K线接触到关键位
+        多单开仓条件
+        K线接触到关键位（日 VWAP）
         出现看涨信号：看涨pinbar、看涨吞没、底分型、孕线上破。
-        看涨信号的收线价格一定要高于关键位
      */
     private static SignalModel MatchLong(TradeLevelModel level, HanJinSignalScanModel scanResult, CandleModel current,
         CandleModel previous, CandleModel earlier) {
-        if (scanResult.Pinbar == SignalSideModel.Buy && Utils.TouchesAndClosesAbove(level.Price, current.Close, current))
+        if (scanResult.Pinbar == SignalSideModel.Buy && Utils.AnyBarTouchesLevel(level.Price, current))
             return CreateSignal(level, "L_Pin_1", current.Low, current);
 
-        if (scanResult.Engulf == SignalSideModel.Buy && Utils.TouchesAndClosesAbove(level.Price, current.Close, current, previous))
+        if (scanResult.Engulf == SignalSideModel.Buy && Utils.AnyBarTouchesLevel(level.Price, current, previous))
             return CreateSignal(level, "L_Eng_1", current.Low, current);
 
         if (scanResult.FractalBottom == SignalSideModel.Buy && Utils.AnyBarIsLong(current) &&
-            Utils.TouchesAndClosesAbove(level.Price, current.Close, current, previous, earlier))
+            Utils.AnyBarTouchesLevel(level.Price, current, previous, earlier))
             return CreateSignal(level, "L_Bot_1", previous.Low, current);
 
-        if (scanResult.HaramiSingle == SignalSideModel.Buy &&
-            Utils.TouchesAndClosesAbove(level.Price, current.Close, current, previous, earlier))
+        if (scanResult.HaramiSingle == SignalSideModel.Buy && Utils.AnyBarTouchesLevel(level.Price, current, previous, earlier))
             return CreateSignal(level, "L_Harami_1", Math.Min(previous.Low, current.Low), current);
 
         return null;

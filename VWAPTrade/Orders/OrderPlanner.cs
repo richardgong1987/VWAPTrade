@@ -11,10 +11,12 @@ namespace cAlgo.Robots;
 public class OrderPlanner {
     private readonly ISymbolModel _symbolModel;
     private readonly RiskGuard _riskGuard;
+    private readonly TradeSettingsModel _settings;
 
-    public OrderPlanner(ISymbolModel symbolModel, RiskGuard riskGuard) {
+    public OrderPlanner(ISymbolModel symbolModel, RiskGuard riskGuard, TradeSettingsModel settings) {
         _symbolModel = symbolModel;
         _riskGuard = riskGuard;
+        _settings = settings;
     }
 
     public OrderPlanModel CreatePlan(SignalModel signalModel, double accountEquity) {
@@ -23,8 +25,8 @@ public class OrderPlanner {
 
         TradeDirectionModel directionModel =
             level.Side == SignalSideModel.Buy ? TradeDirectionModel.Long : TradeDirectionModel.Short;
-        FillGeometry(signalModel, directionModel, level.TakeProfitR, out double entry, out double stop, out double riskPrice,
-            out double takeProfit);
+        FillGeometry(signalModel, directionModel, level.TakeProfitR, _symbolModel.TickSize * _settings.StopOffsetTicks,
+            out double entry, out double stop, out double riskPrice, out double takeProfit);
         double stopLossPips = riskPrice / _symbolModel.PipSize;
 
         if (_riskGuard.TryGetStopLossPipsRejectReason(stopLossPips, out string rejectReason)) {
@@ -55,16 +57,19 @@ public class OrderPlanner {
     }
 
     private static void FillGeometry(SignalModel signalModel, TradeDirectionModel directionModel, double takeProfitR,
-        out double entry, out double stop, out double riskPrice, out double takeProfit) {
-        // The stop sits exactly on the signal's stop-loss price — the pattern-specific level the
-        // detector chose — and the entry is the signal bar's close, since every order is a market order.
-        stop = signalModel.StopLoss;
+        double stopOffset, out double entry, out double stop, out double riskPrice, out double takeProfit) {
+        // 止损从形态自带的价位起算，再往外让开 stopOffset，免得贴着影线被扫。
+        // 入场价是信号 K 线的收盘价 —— 一律市价单。
+        //
+        // 止盈是固定的 TakeProfitR×R，开仓时就定死，直接挂在订单上交给券商执行；持仓期间不需要再盯。
         entry = signalModel.Close;
 
         if (directionModel == TradeDirectionModel.Long) {
+            stop = signalModel.StopLoss - stopOffset;
             riskPrice = entry - stop;
             takeProfit = entry + takeProfitR * riskPrice;
         } else {
+            stop = signalModel.StopLoss + stopOffset;
             riskPrice = stop - entry;
             takeProfit = entry - takeProfitR * riskPrice;
         }

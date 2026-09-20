@@ -17,6 +17,15 @@ public class VWAPTrade : Robot {
     [Parameter("止盈目标", DefaultValue = 2.0, MinValue = 0.5, MaxValue = 20.0, Step = 0.1)]
     public double TakeProfitR { get; set; }
 
+    [Parameter("止损偏移点数", DefaultValue = 400, MinValue = 0, MaxValue = 2000, Group = "风控配置")]
+    public int StopOffsetTicks { get; set; }
+
+    [Parameter("保护止损触发R (0=关闭)", DefaultValue = 1.0, MinValue = 0.0, MaxValue = 30.0, Step = 0.1, Group = "风控配置")]
+    public double BreakevenTriggerR { get; set; }
+
+    [Parameter("保护止损偏移点数", DefaultValue = 50, MinValue = 0, MaxValue = 2000, Group = "风控配置")]
+    public int BreakevenOffsetTicks { get; set; }
+
     [Parameter("启动时清空交易记录CSV", DefaultValue = false, Group = "开发调试")]
     public bool ResetTradeLogOnStart { get; set; }
 
@@ -43,7 +52,7 @@ public class VWAPTrade : Robot {
 
         LaunchDebug();
 
-        var settings = new TradeSettingsModel(RiskPct, TakeProfitR);
+        var settings = new TradeSettingsModel(RiskPct, TakeProfitR, StopOffsetTicks, BreakevenTriggerR, BreakevenOffsetTicks);
         PrintSettings(settings);
 
         _vwapSeries = new VwapSeries(Bars);
@@ -61,16 +70,18 @@ public class VWAPTrade : Robot {
         Print("****CSV logger path: {0}", _csvLogger.FilePath);
 
         var riskGuard = new RiskGuard();
-        var planner = new OrderPlanner(new CAlgoSymbolModel(Symbol), riskGuard);
+        var symbolModel = new CAlgoSymbolModel(Symbol);
+        var planner = new OrderPlanner(symbolModel, riskGuard, settings);
         _orderExecutor = new OrderExecutor(this, SymbolName, Bars.TimeFrame.ToString(), OrderLabel.Trim(), planner, riskGuard,
-            _csvLogger);
+            _csvLogger, symbolModel, settings);
 
         Print("*****VWAP break and reverse started.");
     }
 
     // 风险% 留 0 就等于这个 cBot 不会下任何单，启动时说清楚，免得以为是信号没出。
     private void PrintSettings(TradeSettingsModel settings) {
-        Print("*****Trade settings | RiskPct: {0}, TakeProfitR: {1}", settings.RiskPct, settings.TakeProfitR);
+        Print("*****Trade settings | RiskPct: {0}, TakeProfitR: {1}, StopOffsetTicks: {2}, BreakevenTriggerR: {3}, BreakevenOffsetTicks: {4}",
+            settings.RiskPct, settings.TakeProfitR, settings.StopOffsetTicks, settings.BreakevenTriggerR, settings.BreakevenOffsetTicks);
 
         if (settings.RiskPct <= 0.0)
             Print("*****Risk % is 0, so this cBot will never trade. Set it above 0 to enable orders.");
@@ -104,6 +115,12 @@ public class VWAPTrade : Robot {
         _vwapSeries?.Update();
         _vwapSlim?.Draw();
         HandleClosedBarSignal();
+        _orderExecutor?.ManageOpenPositions();
+    }
+
+    // 保本止损要盯的是盘中价格，不能只在收线时检查，否则一根 K 线里冲到触发价又回落就错过了。
+    protected override void OnTick() {
+        _orderExecutor?.ManageOpenPositions();
     }
 
     // 一根 K 线可能同时命中当日与当周两条 VWAP，每一档各自下单、各自画标记。

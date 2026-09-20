@@ -14,16 +14,6 @@ public class Utils {
         return candle.Low <= level && candle.High >= level;
     }
 
-    // 看跌确认：touchCandles 里有 K 线接触到该价位，且收盘价低于该价位。
-    public static bool TouchesAndClosesBelow(double level, double closePrice, params CandleModel[] touchCandles) {
-        return AnyBarTouchesLevel(level, touchCandles) && closePrice < level;
-    }
-
-    // 看涨确认：touchCandles 里有 K 线接触到该价位，且收盘价高于该价位。
-    public static bool TouchesAndClosesAbove(double level, double closePrice, params CandleModel[] touchCandles) {
-        return AnyBarTouchesLevel(level, touchCandles) && closePrice > level;
-    }
-
     public static bool AnyBarIsLong(params CandleModel[] candles) {
         foreach (CandleModel candle in candles) {
             if (!candle.IsBullish) {

@@ -8,9 +8,8 @@ public class SignalDetector {
     // 的下标是 Count-2，所以至少要有 4 根才读得到 earlier。
     private const int MinimumBarCount = 4;
 
-    // 写进订单标签与交易 CSV 的「关键位」列，两条线各自独立持仓。
-    private const string DailyLevelName = "VWAP_D";
-    private const string WeeklyLevelName = "VWAP_W";
+    // 写进订单标签与交易 CSV 的「关键位」列。关键位只有一个：图上那条黄线，也就是日 VWAP。
+    private const string LevelName = "VWAP";
 
     private readonly Bars _chartBars;
     private readonly VwapSeries _vwapSeries;
@@ -22,7 +21,7 @@ public class SignalDetector {
         _settings = settings;
     }
 
-    // 返回这根收盘 K 线上命中的全部信号，当日/当周两条 VWAP 各最多一个。
+    // 这根收盘 K 线上最多一个信号：先过方向闸门，再看形态有没有长在日 VWAP 上。
     public List<SignalModel> DetectOnClosedBar() {
         int closedBarIndex = _chartBars.Count - 2; // last fully closed bar in OnBar()
 
@@ -30,34 +29,24 @@ public class SignalDetector {
             return new List<SignalModel>();
 
         CandleModel current = ReadCandle(closedBarIndex);
-        CandleModel previous = ReadCandle(closedBarIndex - 1);
-        CandleModel earlier = ReadCandle(closedBarIndex - 2);
-
-        List<SignalModel> signals = MainBiz.Evaluate(current, previous, earlier, BuildLevels(closedBarIndex, current));
-
-        foreach (SignalModel signal in signals) {
-            signal.BarIndex = closedBarIndex;
-            signal.BarTime = _chartBars.OpenTimes[closedBarIndex];
-        }
-
-        return signals;
-    }
-
-    // 关键位不再手工输入，而是这根 K 线上的当日/当周 VWAP。
-    private IReadOnlyList<TradeLevelModel> BuildLevels(int closedBarIndex, CandleModel current) {
         VwapSampleModel vwap = _vwapSeries[closedBarIndex];
 
-        return new List<TradeLevelModel> {
-            CreateLevel(DailyLevelName, vwap.Daily, current),
-            CreateLevel(WeeklyLevelName, vwap.Weekly, current)
-        };
-    }
+        // 收盘价与两条 VWAP 没排成一条线，就是趋势没站在任何一边，这根 K 线不做。
+        SignalSideModel side = VwapStack.ResolveSide(current.Close, vwap.Daily, vwap.Weekly);
 
-    // 收盘价在关键位下方就只可能是空信号，上方就只可能是多信号（见 Utils 的两个确认条件），
-    // 所以这一根 K 线上这一档的方向由收盘价相对 VWAP 的位置决定。
-    private TradeLevelModel CreateLevel(string name, double price, CandleModel current) {
-        SignalSideModel side = current.Close < price ? SignalSideModel.Sell : SignalSideModel.Buy;
-        return new TradeLevelModel(name, side, price, _settings.RiskPct, _settings.TakeProfitR);
+        if (side == SignalSideModel.None)
+            return new List<SignalModel>();
+
+        // 关键位是日 VWAP —— 图上那条黄线；周 VWAP 只当方向闸门，不作为关键位。
+        var level = new TradeLevelModel(LevelName, side, vwap.Daily, _settings.RiskPct, _settings.TakeProfitR);
+        SignalModel signal = MainBiz.Evaluate(current, ReadCandle(closedBarIndex - 1), ReadCandle(closedBarIndex - 2), level);
+
+        if (signal == null)
+            return new List<SignalModel>();
+
+        signal.BarIndex = closedBarIndex;
+        signal.BarTime = _chartBars.OpenTimes[closedBarIndex];
+        return new List<SignalModel> { signal };
     }
 
     private CandleModel ReadCandle(int index) {

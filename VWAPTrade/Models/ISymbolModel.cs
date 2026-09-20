@@ -4,6 +4,10 @@ namespace cAlgo.Robots;
 // cAlgo.API type. CAlgoSymbolModel adapts the real Symbol; tests supply a fake.
 public interface ISymbolModel {
     double PipSize { get; }
+
+    // 最小报价变动。止损偏移与保本偏移都按 tick 计。
+    double TickSize { get; }
+
     double LotSize { get; }
     double VolumeInUnitsMin { get; }
     double VolumeInUnitsMax { get; }
