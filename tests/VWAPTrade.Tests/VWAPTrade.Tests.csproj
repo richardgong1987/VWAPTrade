@@ -21,12 +21,14 @@
     <Compile Include="..\..\VWAPTrade\Orders\OrderPlanner.cs" Link="Orders\OrderPlanner.cs" />
     <Compile Include="..\..\VWAPTrade\Risk\RiskGuard.cs" Link="Risk\RiskGuard.cs" />
     <Compile Include="..\..\VWAPTrade\OrderLogger\TradeCsvMigrator.cs" Link="OrderLogger\TradeCsvMigrator.cs" />
+    <Compile Include="..\..\VWAPTrade\LineDrawer\VwapCalculator.cs" Link="LineDrawer\VwapCalculator.cs" />
   </ItemGroup>
 
   <!-- Data models the planner depends on. CAlgoSymbolModel is intentionally excluded: it is the
        only Models/ file that references cAlgo.API. -->
   <ItemGroup Label="Models under test">
     <Compile Include="..\..\VWAPTrade\Models\SignalModel.cs" Link="Models\SignalModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\VwapSampleModel.cs" Link="Models\VwapSampleModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\SignalSideModel.cs" Link="Models\SignalSideModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\TradeLevelModel.cs" Link="Models\TradeLevelModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\OrderPlanModel.cs" Link="Models\OrderPlanModel.cs" />
