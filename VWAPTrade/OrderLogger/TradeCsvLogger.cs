@@ -70,6 +70,7 @@ public class TradeCsvLogger {
             GapX = planModel.GapX,
             SlopeX = planModel.SlopeX,
             DailyVwapLookback = planModel.DailyVwapBefore,
+            WeeklyVwapLookback = planModel.WeeklyVwapBefore,
             GapChangeX = planModel.GapChangeX
         };
 
@@ -116,6 +117,7 @@ public class TradeCsvLogger {
             GapX = entryPlan?.GapX ?? double.NaN,
             SlopeX = entryPlan?.SlopeX ?? double.NaN,
             DailyVwapLookback = entryPlan?.DailyVwapBefore ?? double.NaN,
+            WeeklyVwapLookback = entryPlan?.WeeklyVwapBefore ?? double.NaN,
             GapChangeX = entryPlan?.GapChangeX ?? double.NaN,
             ResultR = GetResultR(position, closePrice, entryPlan),
             Symbol = symbolName,
@@ -159,7 +161,7 @@ public class TradeCsvLogger {
             Escape(FormatReading(recordModel.Atr14H1)), Escape(FormatReading(recordModel.GapX)),
             Escape(FormatReading(recordModel.SlopeX)), Escape(recordModel.FinalResult),
             Escape(FormatReading(recordModel.DailyVwapLookback)), Escape(FormatReading(recordModel.ResultR)),
-            Escape(FormatReading(recordModel.GapChangeX)));
+            Escape(FormatReading(recordModel.GapChangeX)), Escape(FormatReading(recordModel.WeeklyVwapLookback)));
         System.IO.File.AppendAllText(_filePath, line + Environment.NewLine, CsvEncoding);
     }
 

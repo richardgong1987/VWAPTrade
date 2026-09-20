@@ -9,7 +9,7 @@ public static class TradeCsvSchema {
         "编号", "关键位", "信号", "备注", "交易品种", "时间周期", "入场时间", "入场价格", "平仓价格", "止损价格", "止盈价格", "风险价格距离", "下单数量",
         "平仓原因", "开仓账户权益", "平仓账户权益", "平仓盈亏", "平仓时间", "持仓ID", "成交ID",
         "多空", "DailyVWAP", "WeeklyVWAP", "ATR14_H1", "GapX", "SlopeX", "最终结果",
-        "DailyVWAP_Lookback", "ResultR", "GapChangeX"
+        "DailyVWAP_Lookback", "ResultR", "GapChangeX", "WeeklyVWAP_Lookback"
     };
 
     public static int ColumnCount => Columns.Length;

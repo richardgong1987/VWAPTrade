@@ -164,6 +164,7 @@ public class OrderExecutor {
         planModel.WeeklyVwap = signalModel.Strong.WeeklyVwap;
         planModel.Atr14H1 = signalModel.Strong.Atr14H1;
         planModel.DailyVwapBefore = signalModel.Strong.DailyVwapBefore;
+        planModel.WeeklyVwapBefore = signalModel.Strong.WeeklyVwapBefore;
     }
 
     // Gates on the level's own label, so the other levels stay free to open their own position.

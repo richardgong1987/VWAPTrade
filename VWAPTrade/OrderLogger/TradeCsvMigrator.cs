@@ -16,9 +16,6 @@ public static class TradeCsvMigrator {
     // 当前列数跟着 TradeCsvSchema 走，加列时不用记得回来改这里。
     private static int CurrentColumnCount => TradeCsvSchema.ColumnCount;
 
-    // 上一版：业务字段 + 7 列 VWAP 读数。只差末尾 3 列，补空即可。
-    private const int VwapReadingsColumnCount = 27;
-
     // 再往前：只有 20 列业务字段。「回撤开仓模式」与「挂单ID」两列在更早的时候已经废弃。
     // 所有可识别的历史行都先收敛到这 20 列，再在末尾补空列凑到当前的 30 列。
     private const int PreviousColumnCount = 20;
@@ -39,11 +36,6 @@ public static class TradeCsvMigrator {
     private const int ColumnCountWithAdxPreviousState = 28;
     private const int ColumnCountWithGapX = 29;
     private const int ColumnCountWithShortGapX = 30;
-
-    // 上一版的表头（27 列）。27 列同时也是下面那个带 DMI 状态列的旧布局，两者只能靠表头区分：
-    // 表头对得上就是上一版、补 3 列空；对不上就是旧布局、要先截掉状态列。
-    private const string PreviousHeaderWithVwapReadings =
-        "编号,关键位,信号,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,持仓ID,成交ID,多空,DailyVWAP,WeeklyVWAP,ATR14_H1,GapX,SlopeX,最终结果";
 
     // 加入 DMI 三列之前的表头（24 列），用来把它与同样 24 列的更早布局区分开。
     private const string PreviousHeaderBeforeDmsState =
@@ -101,9 +93,10 @@ public static class TradeCsvMigrator {
     // 把任意可识别的历史布局收敛成一行「前缀正确」的列，交给 PadToCurrentLayout 补齐末尾。
     // 认不出来就返回 null。
     private static string[] ToPreviousLayout(string[] columns, string header) {
-        // 上一版（27 列，已经带 VWAP 读数）原样留着，只在末尾补 3 列。必须排在状态列那一支前面：
-        // 两者都是 27 列，认错了就会把读数当成状态列截掉。
-        if (columns.Length == VwapReadingsColumnCount && header == PreviousHeaderWithVwapReadings)
+        // 历次加列都是往末尾加，所以每一版旧表头都是当前表头的前缀。凭这一点认出「只是少了末尾
+        // 几列」的旧文件：原样留着，后面补空列即可。必须排在状态列那一支前面 —— 有几版的列数与
+        // 那些旧布局撞上（27、30 都撞过），认错了就会把 VWAP 读数当成状态列截掉。
+        if (IsEarlierSchemaHeader(header, columns.Length))
             return columns;
 
         if (columns.Length == PreviousColumnCount)
@@ -116,6 +109,13 @@ public static class TradeCsvMigrator {
             return RemoveDroppedColumns(TrimToBusinessColumns(columns));
 
         return null;
+    }
+
+    // 表头是当前表头的前缀，且这一行的宽度正好等于那份表头的列数 —— 也就是「同一套 schema 的
+    // 早期版本」，中间的列序没有变过，只是末尾少了几列。
+    private static bool IsEarlierSchemaHeader(string header, int columnCount) {
+        return TradeCsvSchema.Header.StartsWith(header + ",", StringComparison.Ordinal) &&
+               header.Split(',').Length == columnCount;
     }
 
     // 旧行缺的列一律在末尾，补空即可 —— 新列一直是往末尾加的，前面的列序不用动。

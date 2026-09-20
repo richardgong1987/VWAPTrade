@@ -32,5 +32,6 @@ public class OrderPlanModel {
     public double GapX { get; set; } = double.NaN;
     public double SlopeX { get; set; } = double.NaN;
     public double DailyVwapBefore { get; set; } = double.NaN;
+    public double WeeklyVwapBefore { get; set; } = double.NaN;
     public double GapChangeX { get; set; } = double.NaN;
 }

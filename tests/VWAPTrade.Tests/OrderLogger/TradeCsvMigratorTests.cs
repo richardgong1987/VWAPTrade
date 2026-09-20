@@ -9,8 +9,11 @@ namespace VWAPTrade.Tests.OrderLogger {
         private const string LegacyHeader =
             "编号,关键位,信号,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,持仓ID,成交ID";
 
-        // The schema grew twice: seven VWAP reading columns, then three more at the end.
+        // Headers of shipped builds. These are frozen history — each one is a prefix of the
+        // current header, because columns are only ever appended.
         private const string VwapReadingsHeader = LegacyHeader + ",多空,DailyVWAP,WeeklyVWAP,ATR14_H1,GapX,SlopeX,最终结果";
+
+        private const string ResultRHeader = VwapReadingsHeader + ",DailyVWAP_Lookback,ResultR,GapChangeX";
 
         // The real header the logger writes — not a copy, so the tests cannot drift from it.
         private static readonly string CurrentHeader = TradeCsvSchema.Header;
@@ -29,8 +32,8 @@ namespace VWAPTrade.Tests.OrderLogger {
         // A row with the seven VWAP reading columns but not the three newest ones.
         private const string VwapReadingsRow = LegacyRow + ",空,2410.5,2402.25,3.4,2.426471,0.735294,亏损";
 
-        // Old rows carry none of the ten added columns, so migration pads them all.
-        private const string ExpectedRow = LegacyRow + ",,,,,,,,,,";
+        // Old rows carry none of the added columns, so migration pads them all.
+        private static readonly string ExpectedRow = LegacyRow + new string(',', TradeCsvSchema.ColumnCount - 20);
 
         [Fact]
         public void leaves_a_file_that_is_already_on_the_current_schema_alone() {
@@ -120,9 +123,23 @@ namespace VWAPTrade.Tests.OrderLogger {
 
         [Fact]
         public void leaves_rows_that_already_carry_every_column_untouched() {
-            string[] lines = { CurrentHeader, VwapReadingsRow + ",2404.1,-1.0,0.35" };
+            string[] lines = { CurrentHeader, VwapReadingsRow + ",2404.1,-1.0,0.35,2398.7" };
 
             Assert.Null(TradeCsvMigrator.Upgrade(lines, CurrentHeader));
+        }
+
+        [Fact]
+        public void pads_a_file_from_the_build_before_the_weekly_lookback_column() {
+            // 30 columns is also the width of an old indicator-state layout; the header is what
+            // says this one is simply an earlier version of the same schema.
+            string row = VwapReadingsRow + ",2404.1,-1.0,0.35";
+            string[] lines = { ResultRHeader, row };
+
+            string[] upgraded = TradeCsvMigrator.Upgrade(lines, CurrentHeader);
+
+            Assert.NotNull(upgraded);
+            Assert.Equal(CurrentHeader, upgraded[0]);
+            Assert.Equal(row + ",", upgraded[1]);
         }
 
         [Fact]
@@ -135,7 +152,7 @@ namespace VWAPTrade.Tests.OrderLogger {
 
             Assert.NotNull(upgraded);
             Assert.Equal(CurrentHeader, upgraded[0]);
-            Assert.Equal(VwapReadingsRow + ",,,", upgraded[1]);
+            Assert.Equal(VwapReadingsRow + new string(',', TradeCsvSchema.ColumnCount - 27), upgraded[1]);
         }
 
         [Fact]

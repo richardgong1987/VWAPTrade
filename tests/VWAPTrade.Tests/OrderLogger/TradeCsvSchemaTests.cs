@@ -24,6 +24,7 @@ namespace VWAPTrade.Tests.OrderLogger {
             Assert.Contains("SlopeX", columns);
             Assert.Contains("最终结果", columns);
             Assert.Contains("DailyVWAP_Lookback", columns);
+            Assert.Contains("WeeklyVWAP_Lookback", columns);
             Assert.Contains("ResultR", columns);
             Assert.Contains("GapChangeX", columns);
         }
@@ -36,9 +37,18 @@ namespace VWAPTrade.Tests.OrderLogger {
         }
 
         [Fact]
-        public void the_newest_columns_come_last() {
-            // Migration pads old rows on the right, so anything added must stay at the end.
-            Assert.EndsWith("DailyVWAP_Lookback,ResultR,GapChangeX", TradeCsvSchema.Header);
+        public void the_columns_of_every_shipped_build_stay_at_the_front_in_order() {
+            // Migration recognises an old file by its header being a prefix of this one, and pads
+            // old rows on the right. Inserting or reordering a column would silently mis-map every
+            // value in every historical file.
+            const string legacy =
+                "编号,关键位,信号,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,持仓ID,成交ID";
+            const string withVwapReadings = legacy + ",多空,DailyVWAP,WeeklyVWAP,ATR14_H1,GapX,SlopeX,最终结果";
+            const string withResultR = withVwapReadings + ",DailyVWAP_Lookback,ResultR,GapChangeX";
+
+            Assert.StartsWith(legacy + ",", TradeCsvSchema.Header);
+            Assert.StartsWith(withVwapReadings + ",", TradeCsvSchema.Header);
+            Assert.StartsWith(withResultR + ",", TradeCsvSchema.Header);
         }
     }
 }
