@@ -26,6 +26,15 @@ public class VWAPTrade : Robot {
     [Parameter("保护止损偏移点数", DefaultValue = 50, MinValue = 0, MaxValue = 2000, Group = "风控配置")]
     public int BreakevenOffsetTicks { get; set; }
 
+    [Parameter("VWAP间距最小值 (ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0, Step = 0.05, Group = "VWAP过滤")]
+    public double VwapGapMin { get; set; }
+
+    [Parameter("VWAP斜率最小值 (ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0, Step = 0.05, Group = "VWAP过滤")]
+    public double VwapSlopeMin { get; set; }
+
+    [Parameter("斜率回看K线数", DefaultValue = 12, MinValue = 1, MaxValue = 200, Group = "VWAP过滤")]
+    public int VwapSlopeLookbackBars { get; set; }
+
     [Parameter("启动时清空交易记录CSV", DefaultValue = false, Group = "开发调试")]
     public bool ResetTradeLogOnStart { get; set; }
 
@@ -52,13 +61,17 @@ public class VWAPTrade : Robot {
 
         LaunchDebug();
 
-        var settings = new TradeSettingsModel(RiskPct, TakeProfitR, StopOffsetTicks, BreakevenTriggerR, BreakevenOffsetTicks);
+        var settings = new TradeSettingsModel(RiskPct, TakeProfitR, StopOffsetTicks, BreakevenTriggerR, BreakevenOffsetTicks,
+            VwapGapMin, VwapSlopeMin, VwapSlopeLookbackBars);
         PrintSettings(settings);
 
         _vwapSeries = new VwapSeries(Bars);
         _vwapSeries.Update();
 
-        _signalDetector = new SignalDetector(Bars, _vwapSeries, settings);
+        // 间距与斜率都按 H1 的 ATR14 归一，所以要单独取一份 H1 的 K 线。
+        var atr14H1 = new Atr14H1Series(Indicators, MarketData.GetBars(TimeFrame.Hour));
+
+        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14H1, settings);
         _signalMarkers = new SignalMarkers(Chart, Symbol.TickSize);
         _vwapSlim = new VwapSlim(Chart, _vwapSeries);
         _vwapSlim.Draw();
@@ -83,6 +96,8 @@ public class VWAPTrade : Robot {
         Print(
             "*****Trade settings | RiskPct: {0}, TakeProfitR: {1}, StopOffsetTicks: {2}, BreakevenTriggerR: {3}, BreakevenOffsetTicks: {4}",
             settings.RiskPct, settings.TakeProfitR, settings.StopOffsetTicks, settings.BreakevenTriggerR, settings.BreakevenOffsetTicks);
+        Print("*****VWAP filters | GapMin: {0}, SlopeMin: {1}, SlopeLookbackBars: {2} ({3} = filter off)",
+            settings.VwapGapMin, settings.VwapSlopeMin, settings.VwapSlopeLookbackBars, 0);
 
         if (settings.RiskPct <= 0.0)
             Print("*****Risk % is 0, so this cBot will never trade. Set it above 0 to enable orders.");

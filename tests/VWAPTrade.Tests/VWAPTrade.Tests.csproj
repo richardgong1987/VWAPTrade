@@ -35,6 +35,7 @@
     <Compile Include="..\..\VWAPTrade\Models\SignalModel.cs" Link="Models\SignalModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\VwapSampleModel.cs" Link="Models\VwapSampleModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\TradeSettingsModel.cs" Link="Models\TradeSettingsModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\VwapStrongReadingModel.cs" Link="Models\VwapStrongReadingModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\CandleModel.cs" Link="Models\CandleModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\HanJinSignalScanModel.cs" Link="Models\HanJinSignalScanModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\HanJinSignalOptionsModel.cs" Link="Models\HanJinSignalOptionsModel.cs" />

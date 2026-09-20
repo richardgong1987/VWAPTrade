@@ -7,6 +7,7 @@ namespace VWAPTrade.Tests {
         public static TradeSettingsModel NoStopOffset() => WithStopOffsetTicks(0);
 
         public static TradeSettingsModel WithStopOffsetTicks(int stopOffsetTicks) =>
-            new(riskPct: 1.0, takeProfitR: 2.0, stopOffsetTicks, breakevenTriggerR: 0.0, breakevenOffsetTicks: 0);
+            new(riskPct: 1.0, takeProfitR: 2.0, stopOffsetTicks, breakevenTriggerR: 0.0, breakevenOffsetTicks: 0,
+                vwapGapMin: 0.0, vwapSlopeMin: 0.0, vwapSlopeLookbackBars: 12);
     }
 }
