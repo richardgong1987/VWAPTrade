@@ -11,9 +11,9 @@ public class VwapSlim {
     private static readonly Color DailyColor = Color.FromArgb(255, 255, 235, 59);
     private static readonly Color WeeklyColor = Color.FromArgb(255, 156, 39, 176);
 
-    private static readonly SeriesStyle DailyStyle = new("D", DailyColor, thickness: 1, LineStyle.Solid);
-    private static readonly SeriesStyle WeeklyStyle = new("W", WeeklyColor, thickness: 2, LineStyle.Solid);
-    private static readonly SeriesStyle PreviousDailyStyle = new("PD", DailyColor, thickness: 1, LineStyle.Dots);
+    private static readonly SeriesStyle DailyStyle = new("D", DailyColor, thickness: 3, LineStyle.Solid);
+    private static readonly SeriesStyle WeeklyStyle = new("W", WeeklyColor, thickness: 4, LineStyle.Solid);
+    private static readonly SeriesStyle PreviousDailyStyle = new("PD", DailyColor, thickness: 3, LineStyle.Dots);
 
     private static readonly TimeFrame[] HiddenTimeFrames = {
         TimeFrame.Daily, TimeFrame.Day2, TimeFrame.Day3, TimeFrame.Weekly, TimeFrame.Monthly,
