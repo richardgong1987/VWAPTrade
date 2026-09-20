@@ -16,16 +16,16 @@
        below (never a ProjectReference) so the tests never pull in the cTrader.Automate /
        cAlgo.API dependency. Only cAlgo-free files may be linked here. -->
   <ItemGroup Label="Orders under test">
-    <Compile Include="..\..\VWAPTrade\Orders\PdhpdlOrderPlanner.cs" Link="Orders\PdhpdlOrderPlanner.cs" />
+    <Compile Include="..\..\VWAPTrade\Orders\OrderPlanner.cs" Link="Orders\OrderPlanner.cs" />
   </ItemGroup>
 
   <!-- Data models the planner depends on. CAlgoSymbolModel is intentionally excluded: it is the
        only Models/ file that references cAlgo.API. -->
   <ItemGroup Label="Models under test">
     <Compile Include="..\..\VWAPTrade\Models\PendingOrderRequestModel.cs" Link="Models\PendingOrderRequestModel.cs" />
-    <Compile Include="..\..\VWAPTrade\Models\PdhpdlOrderPlanModel.cs" Link="Models\PdhpdlOrderPlanModel.cs" />
-    <Compile Include="..\..\VWAPTrade\Models\PdhpdlTradeDirectionModel.cs" Link="Models\PdhpdlTradeDirectionModel.cs" />
-    <Compile Include="..\..\VWAPTrade\Models\IPdhpdlSymbolModel.cs" Link="Models\IPdhpdlSymbolModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\OrderPlanModel.cs" Link="Models\OrderPlanModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\TradeDirectionModel.cs" Link="Models\TradeDirectionModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\ISymbolModel.cs" Link="Models\ISymbolModel.cs" />
   </ItemGroup>
 
 </Project>

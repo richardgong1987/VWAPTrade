@@ -5,10 +5,10 @@ using cAlgo.API;
 namespace cAlgo.Robots;
 
 // Places and tracks the strategy's cTrader orders. It gates on the risk guard and open
-// exposure, asks PdhpdlOrderPlanner to size the order, submits it as a market order, and
+// exposure, asks OrderPlanner to size the order, submits it as a market order, and
 // keeps the CSV row ids so opens and closes can be reconciled. All sizing math lives in
 // the planner.
-public class PdhpdlOrderExecutor {
+public class OrderExecutor {
     private const string EntryComment = "ENTRY";
 
     private readonly Robot _robot;
@@ -21,15 +21,15 @@ public class PdhpdlOrderExecutor {
     // trades and other bots on the same symbol are ignored.
     private readonly string _strategyLabelPrefix;
 
-    private readonly PdhpdlOrderPlanner _planner;
-    private readonly PdhpdlRiskGuard _riskGuard;
-    private readonly PdhpdlTradeCsvLogger _csvLogger;
+    private readonly OrderPlanner _planner;
+    private readonly RiskGuard _riskGuard;
+    private readonly TradeCsvLogger _csvLogger;
 
     private readonly Dictionary<int, string> _positionCsvIds = new();
     private readonly Dictionary<int, double> _positionEntryEquities = new();
 
-    public PdhpdlOrderExecutor(Robot robot, string symbolName, string timeFrame, string orderLabel, PdhpdlOrderPlanner planner,
-        PdhpdlRiskGuard riskGuard, PdhpdlTradeCsvLogger csvLogger) {
+    public OrderExecutor(Robot robot, string symbolName, string timeFrame, string orderLabel, OrderPlanner planner,
+        RiskGuard riskGuard, TradeCsvLogger csvLogger) {
         _robot = robot;
         _symbolName = symbolName;
         _timeFrame = timeFrame;
@@ -45,7 +45,7 @@ public class PdhpdlOrderExecutor {
         _robot.Positions.Closed -= OnPositionClosed;
     }
 
-    public bool ExecuteIfSignal(PdhpdlSignalModel signalModel) {
+    public bool ExecuteIfSignal(SignalModel signalModel) {
         if (signalModel?.Level == null)
             return false;
 
@@ -62,7 +62,7 @@ public class PdhpdlOrderExecutor {
             return false;
         }
 
-        PdhpdlOrderPlanModel planModel = _planner.CreatePlan(signalModel, _robot.Account.Equity);
+        OrderPlanModel planModel = _planner.CreatePlan(signalModel, _robot.Account.Equity);
 
         if (!planModel.IsValid) {
             _robot.Print("*****Order rejected | Level: {0}, Reason: {1}", signalModel.Level.Name, planModel.RejectReason);
@@ -100,7 +100,7 @@ public class PdhpdlOrderExecutor {
         return _robot.Positions.Any(position => position.SymbolName == _symbolName && position.Label == label);
     }
 
-    private bool ExecutePlan(PdhpdlOrderPlanModel planModel) {
+    private bool ExecutePlan(OrderPlanModel planModel) {
         _robot.Print(
             "*****Order plan | Level: {0}, Side: {1}, Entry: {2}, Stop: {3}, TakeProfit: {4}, RiskPrice: {5}, StopLossPips: {6}, RiskMoney: {7}, EstimatedRiskMoney: {8}, Lots: {9}, VolumeUnits: {10}",
             planModel.KeyLevel, planModel.DirectionModel, planModel.EntryPrice, planModel.StopPrice, planModel.TakeProfitPrice,
@@ -118,12 +118,12 @@ public class PdhpdlOrderExecutor {
         return RecordMarketEntry(planModel, result.Position);
     }
 
-    private TradeResult SubmitOrder(PdhpdlOrderPlanModel planModel) {
+    private TradeResult SubmitOrder(OrderPlanModel planModel) {
         return _robot.ExecuteMarketOrder(ToTradeType(planModel.DirectionModel), _symbolName, planModel.VolumeInUnits, planModel.Label,
             planModel.StopLossPips, planModel.TakeProfitPips, EntryComment);
     }
 
-    private bool RecordMarketEntry(PdhpdlOrderPlanModel planModel, Position position) {
+    private bool RecordMarketEntry(OrderPlanModel planModel, Position position) {
         string csvId = _csvLogger.AppendEntry(planModel, position, _symbolName, _timeFrame);
 
         if (string.IsNullOrWhiteSpace(csvId))
@@ -181,7 +181,7 @@ public class PdhpdlOrderExecutor {
         return 0.0;
     }
 
-    private static TradeType ToTradeType(PdhpdlTradeDirectionModel directionModel) {
-        return directionModel == PdhpdlTradeDirectionModel.Long ? TradeType.Buy : TradeType.Sell;
+    private static TradeType ToTradeType(TradeDirectionModel directionModel) {
+        return directionModel == TradeDirectionModel.Long ? TradeType.Buy : TradeType.Sell;
     }
 }

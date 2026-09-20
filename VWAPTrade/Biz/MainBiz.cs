@@ -5,17 +5,17 @@ namespace cAlgo.Robots;
 
 public class MainBiz {
     // 每一档价位各自判断：K 线接触到这一档、并且收在正确的一侧，就为这一档产生一个信号。
-    // 一根 K 线同时命中几档就返回几个信号 —— 每一档各自独立持仓（见 PdhpdlOrderExecutor）。
-    public static List<PdhpdlSignalModel> Evaluate(CandleModel current, CandleModel previous, CandleModel earlier,
+    // 一根 K 线同时命中几档就返回几个信号 —— 每一档各自独立持仓（见 OrderExecutor）。
+    public static List<SignalModel> Evaluate(CandleModel current, CandleModel previous, CandleModel earlier,
         IReadOnlyList<TradeLevelModel> levels) {
         HanJinSignalScanModel scanResult = HanJinSignals26.Scan(current, previous, earlier);
-        var signals = new List<PdhpdlSignalModel>();
+        var signals = new List<SignalModel>();
 
         foreach (TradeLevelModel level in levels) {
             if (!level.IsConfigured)
                 continue;
 
-            PdhpdlSignalModel signal = level.Side == SignalSideModel.Sell
+            SignalModel signal = level.Side == SignalSideModel.Sell
                 ? MatchShort(level, scanResult, current, previous, earlier)
                 : MatchLong(level, scanResult, current, previous, earlier);
 
@@ -33,7 +33,7 @@ public class MainBiz {
            出现看跌信号：看跌pinbar、看跌吞没、顶分型、孕线下破。
            看跌信号的收线价格一定要低于PDH
      */
-    private static PdhpdlSignalModel MatchShort(TradeLevelModel level, HanJinSignalScanModel scanResult, CandleModel current,
+    private static SignalModel MatchShort(TradeLevelModel level, HanJinSignalScanModel scanResult, CandleModel current,
         CandleModel previous, CandleModel earlier) {
         if (scanResult.Pinbar == SignalSideModel.Sell && Utils.TouchesAndClosesBelow(level.Price, current.Close, current))
             return CreateSignal(level, "S_Pin_1", current.High, current);
@@ -59,7 +59,7 @@ public class MainBiz {
         出现看涨信号：看涨pinbar、看涨吞没、底分型、孕线上破。
         看涨信号的收线价格一定要高于PDL
      */
-    private static PdhpdlSignalModel MatchLong(TradeLevelModel level, HanJinSignalScanModel scanResult, CandleModel current,
+    private static SignalModel MatchLong(TradeLevelModel level, HanJinSignalScanModel scanResult, CandleModel current,
         CandleModel previous, CandleModel earlier) {
         if (scanResult.Pinbar == SignalSideModel.Buy && Utils.TouchesAndClosesAbove(level.Price, current.Close, current))
             return CreateSignal(level, "L_Pin_1", current.Low, current);
@@ -78,8 +78,8 @@ public class MainBiz {
         return null;
     }
 
-    private static PdhpdlSignalModel CreateSignal(TradeLevelModel level, string label, double stopLoss, CandleModel current) {
-        return new PdhpdlSignalModel {
+    private static SignalModel CreateSignal(TradeLevelModel level, string label, double stopLoss, CandleModel current) {
+        return new SignalModel {
             Level = level,
             Label = label,
             StopLoss = stopLoss,

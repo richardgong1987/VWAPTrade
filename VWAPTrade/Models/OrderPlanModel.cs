@@ -1,11 +1,11 @@
 namespace cAlgo.Robots;
 
 // The sized order the planner produces from a signal. Pure data, no cAlgo dependency.
-public class PdhpdlOrderPlanModel {
+public class OrderPlanModel {
     public bool IsValid { get; set; }
     public string RejectReason { get; set; } = "";
 
-    public PdhpdlTradeDirectionModel DirectionModel { get; set; }
+    public TradeDirectionModel DirectionModel { get; set; }
 
     public double EntryPrice { get; set; }
     public double StopPrice { get; set; }

@@ -3,7 +3,7 @@ using cAlgo.API;
 
 namespace cAlgo.Robots;
 
-public class PdhpdlSignalDetector {
+public class SignalDetector {
     // 形态最多要看三根 K 线（current / previous / earlier），而 OnBar() 里最后一根收盘 K 线
     // 的下标是 Count-2，所以至少要有 4 根才读得到 earlier。
     private const int MinimumBarCount = 4;
@@ -11,24 +11,24 @@ public class PdhpdlSignalDetector {
     private readonly Bars _chartBars;
     private readonly IReadOnlyList<TradeLevelModel> _levels;
 
-    public PdhpdlSignalDetector(Bars chartBars, IReadOnlyList<TradeLevelModel> levels) {
+    public SignalDetector(Bars chartBars, IReadOnlyList<TradeLevelModel> levels) {
         _chartBars = chartBars;
         _levels = levels;
     }
 
     // 返回这根收盘 K 线上命中的全部信号，每一档价位最多一个。
-    public List<PdhpdlSignalModel> DetectOnClosedBar() {
+    public List<SignalModel> DetectOnClosedBar() {
         if (_chartBars.Count < MinimumBarCount)
-            return new List<PdhpdlSignalModel>();
+            return new List<SignalModel>();
 
         int closedBarIndex = _chartBars.Count - 2; // last fully closed bar in OnBar()
         CandleModel current = ReadCandle(closedBarIndex);
         CandleModel previous = ReadCandle(closedBarIndex - 1);
         CandleModel earlier = ReadCandle(closedBarIndex - 2);
 
-        List<PdhpdlSignalModel> signals = MainBiz.Evaluate(current, previous, earlier, _levels);
+        List<SignalModel> signals = MainBiz.Evaluate(current, previous, earlier, _levels);
 
-        foreach (PdhpdlSignalModel signal in signals) {
+        foreach (SignalModel signal in signals) {
             signal.BarIndex = closedBarIndex;
             signal.BarTime = _chartBars.OpenTimes[closedBarIndex];
         }

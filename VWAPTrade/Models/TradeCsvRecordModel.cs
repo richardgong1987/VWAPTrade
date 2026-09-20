@@ -2,7 +2,7 @@ using System;
 
 namespace cAlgo.Robots;
 
-public class PdhpdlTradeCsvRecordModel {
+public class TradeCsvRecordModel {
     public string Id { get; set; }
 
     public string KeyLevel { get; set; }

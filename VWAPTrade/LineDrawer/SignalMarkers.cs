@@ -4,7 +4,7 @@ using cAlgo.API;
 
 namespace cAlgo.Robots;
 
-public class PdhpdlSignalMarkers {
+public class SignalMarkers {
     private const string Prefix = "PDH_PDL_SIGNAL_";
 
     private const int IconOffsetTicks = 120;
@@ -16,13 +16,13 @@ public class PdhpdlSignalMarkers {
     private readonly double _textOffset;
     private readonly HashSet<string> _objectNames = new();
 
-    public PdhpdlSignalMarkers(Chart chart, double tickSize) {
+    public SignalMarkers(Chart chart, double tickSize) {
         _chart = chart;
         _iconOffset = tickSize * IconOffsetTicks;
         _textOffset = tickSize * TextOffsetTicks;
     }
 
-    public void Draw(PdhpdlSignalModel signalModel) {
+    public void Draw(SignalModel signalModel) {
         if (signalModel?.Level == null)
             return;
 
@@ -40,7 +40,7 @@ public class PdhpdlSignalMarkers {
         _objectNames.Clear();
     }
 
-    private void DrawLong(PdhpdlSignalModel signalModel) {
+    private void DrawLong(SignalModel signalModel) {
         string key = GetKey(signalModel);
 
         double iconPrice = signalModel.Low - _iconOffset;
@@ -62,7 +62,7 @@ public class PdhpdlSignalMarkers {
         _objectNames.Add(textName);
     }
 
-    private void DrawShort(PdhpdlSignalModel signalModel) {
+    private void DrawShort(SignalModel signalModel) {
         string key = GetKey(signalModel);
 
         double iconPrice = signalModel.High + _iconOffset;
@@ -97,7 +97,7 @@ public class PdhpdlSignalMarkers {
     }
 
     // 一根 K 线可能同时命中几档，所以 key 要带上档位名，否则几个标记会互相覆盖。
-    private static string GetKey(PdhpdlSignalModel signalModel) {
+    private static string GetKey(SignalModel signalModel) {
         return $"{signalModel.BarTime:yyyyMMdd_HHmmss}_{signalModel.Level.Name}";
     }
 }

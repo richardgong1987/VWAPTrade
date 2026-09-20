@@ -15,12 +15,12 @@ pieces together (the composition root).
 Behavior classes live beside the feature they serve; all data types live in `Models/`
 (suffixed `Model`):
 
-- `Orders/` — `PdhpdlOrderPlanner` (pure sizing/geometry, unit tested) talks to the broker
-  only through the `IPdhpdlSymbolModel` port; `PdhpdlOrderExecutor` gates on risk/exposure,
+- `Orders/` — `OrderPlanner` (pure sizing/geometry, unit tested) talks to the broker
+  only through the `ISymbolModel` port; `OrderExecutor` gates on risk/exposure,
   submits orders, and cancels stale pending orders.
-- `Risk/` — `PdhpdlRiskGuard` (time/news/weekend windows + risk-money, pure, unit tested).
-- `Models/` — data types: `PdhpdlOrderPlanModel`, `PdhpdlTradeDirectionModel`,
-  `NewsBlackoutWindowModel`, the `IPdhpdlSymbolModel` port, and its `CAlgoSymbolModel`
+- `Risk/` — `RiskGuard` (time/news/weekend windows + risk-money, pure, unit tested).
+- `Models/` — data types: `OrderPlanModel`, `TradeDirectionModel`,
+  `NewsBlackoutWindowModel`, the `ISymbolModel` port, and its `CAlgoSymbolModel`
   adapter (the one Models/ file that references `cAlgo.API`).
 
 Rule of thumb: classes with no `using cAlgo.API` are pure and testable; keep them that way.
@@ -48,7 +48,7 @@ Pure (framework-independent) helpers are unit-tested with xUnit under `tests/`:
 
 ```bash
 ./scripts/test.sh                                       # build cBot + run all tests
-dotnet test "tests/Pdhpdl.Tests/Pdhpdl.Tests.csproj"      # tests only
+dotnet test "tests/VWAPTrade.Tests/VWAPTrade.Tests.csproj"      # tests only
 ```
 
 The test project is intentionally **not** part of the `.sln` (which cTrader builds) and

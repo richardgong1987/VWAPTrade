@@ -12,7 +12,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 SOLUTION="VWAPTrade.sln"
-TEST_PROJECT="tests/Pdhpdl.Tests/Pdhpdl.Tests.csproj"
+TEST_PROJECT="tests/VWAPTrade.Tests/VWAPTrade.Tests.csproj"
 
 echo "==> Building cBot ($SOLUTION)"
 dotnet build "$SOLUTION" -c Release

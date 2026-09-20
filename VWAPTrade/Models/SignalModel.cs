@@ -3,8 +3,8 @@ using System;
 namespace cAlgo.Robots;
 
 // 一个信号 = 一档价位在某根收盘 K 线上命中。同一根 K 线命中几档就有几个信号，
-// 每个各自下单（见 MainBiz 与 PdhpdlOrderExecutor）。
-public class PdhpdlSignalModel {
+// 每个各自下单（见 MainBiz 与 OrderExecutor）。
+public class SignalModel {
     // 命中的那一档：方向、风险预算与止盈倍数都从它来。
     public TradeLevelModel Level { get; set; }
 

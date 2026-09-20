@@ -79,10 +79,10 @@ public class VWAPTrade : Robot {
     [Parameter("输出文件名", DefaultValue = "VWAPTrades.csv", Group = "开发调试")]
     public string FileName { get; set; }
 
-    private PdhpdlSignalDetector _signalDetector;
-    private PdhpdlSignalMarkers _signalMarkers;
-    private PdhpdlOrderExecutor _orderExecutor;
-    private PdhpdlTradeCsvLogger _csvLogger;
+    private SignalDetector _signalDetector;
+    private SignalMarkers _signalMarkers;
+    private OrderExecutor _orderExecutor;
+    private TradeCsvLogger _csvLogger;
 
     protected override void OnStart() {
         // A blank label would make every "_L"/"_S" label on the symbol look like this bot's order.
@@ -97,15 +97,15 @@ public class VWAPTrade : Robot {
         List<TradeLevelModel> tradeLevels = BuildTradeLevels();
         PrintConfiguredLevels(tradeLevels);
 
-        _signalDetector = new PdhpdlSignalDetector(Bars, tradeLevels);
-        _signalMarkers = new PdhpdlSignalMarkers(Chart, Symbol.TickSize);
+        _signalDetector = new SignalDetector(Bars, tradeLevels);
+        _signalMarkers = new SignalMarkers(Chart, Symbol.TickSize);
 
-        _csvLogger = new PdhpdlTradeCsvLogger(ResetTradeLogOnStart, ResolveReportsDirectory(), FileName);
+        _csvLogger = new TradeCsvLogger(ResetTradeLogOnStart, ResolveReportsDirectory(), FileName);
         Print("****CSV logger path: {0}", _csvLogger.FilePath);
 
-        var riskGuard = new PdhpdlRiskGuard();
-        var planner = new PdhpdlOrderPlanner(new CAlgoSymbolModel(Symbol), riskGuard);
-        _orderExecutor = new PdhpdlOrderExecutor(this, SymbolName, Bars.TimeFrame.ToString(), OrderLabel.Trim(), planner, riskGuard,
+        var riskGuard = new RiskGuard();
+        var planner = new OrderPlanner(new CAlgoSymbolModel(Symbol), riskGuard);
+        _orderExecutor = new OrderExecutor(this, SymbolName, Bars.TimeFrame.ToString(), OrderLabel.Trim(), planner, riskGuard,
             _csvLogger);
         CancelPendingOrdersOfClearedLevels(tradeLevels);
 
@@ -153,7 +153,7 @@ public class VWAPTrade : Robot {
     }
 
     // 输出目录按运行模式分开、互不覆盖：回测目录由脚本每次清空重建，模拟/实盘目录只追加、从不删除。
-    // 回测经 run_conditions 传入绝对路径 FileName，此目录会被忽略（见 PdhpdlTradeCsvLogger）。
+    // 回测经 run_conditions 传入绝对路径 FileName，此目录会被忽略（见 TradeCsvLogger）。
     private string ResolveReportsDirectory() {
         string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         return Path.Combine(documentsPath, ResolveReportsFolderName());
@@ -172,7 +172,7 @@ public class VWAPTrade : Robot {
 
     // 一根 K 线可能同时命中几档价位，每一档各自下单、各自画标记。
     private void HandleClosedBarSignal() {
-        foreach (PdhpdlSignalModel signalModel in _signalDetector.DetectOnClosedBar()) {
+        foreach (SignalModel signalModel in _signalDetector.DetectOnClosedBar()) {
             if (_orderExecutor.ExecuteIfSignal(signalModel)) {
                 _signalMarkers.Draw(signalModel);
             }

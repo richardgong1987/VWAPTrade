@@ -4,10 +4,10 @@ using System.Globalization;
 namespace cAlgo.Robots;
 
 // Upgrades a previously written trades CSV to the current column schema. This is a separate
-// concern from PdhpdlTradeCsvLogger: the logger writes today's format, this migrator knows the
+// concern from TradeCsvLogger: the logger writes today's format, this migrator knows the
 // history of older layouts (fewer columns, equity columns in different positions, per-pullback
 // entry-mode columns) and rewrites old rows in place. Pure string work, no cAlgo dependency.
-public static class PdhpdlTradeCsvMigrator {
+public static class TradeCsvMigrator {
     // 「回撤开仓模式」与「挂单ID」两列已废弃（只剩市价单，没有挂单，也没有回撤模式可选），
     // 当前 schema 是 20 列。
     private const int CurrentColumnCount = 20;

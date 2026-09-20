@@ -2,7 +2,7 @@ using System;
 
 namespace cAlgo.Robots;
 
-public class PdhpdlRiskGuard {
+public class RiskGuard {
     public bool ShouldBlockNewOrder(DateTime time) {
         return time.DayOfWeek == DayOfWeek.Sunday;
     }

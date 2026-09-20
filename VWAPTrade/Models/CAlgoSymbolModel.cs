@@ -3,9 +3,9 @@ using cAlgo.API.Internals;
 
 namespace cAlgo.Robots;
 
-// Adapts the real cTrader Symbol to IPdhpdlSymbolModel. Volume is rounded to the nearest
+// Adapts the real cTrader Symbol to ISymbolModel. Volume is rounded to the nearest
 // tradable step so a stop-out risks as close to the budget as the step allows.
-public class CAlgoSymbolModel : IPdhpdlSymbolModel {
+public class CAlgoSymbolModel : ISymbolModel {
     private readonly Symbol _symbol;
 
     public CAlgoSymbolModel(Symbol symbol) {

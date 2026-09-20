@@ -88,7 +88,7 @@ public double Tp2R { get; set; }
 
 ## Existing classes
 
-### `PdhpdlUtils`
+### `Utils`
 
 Pure utility class.
 
@@ -97,7 +97,7 @@ Responsibilities:
 * Calculate how many days to draw.
 * Read previous day levels.
 * Detect false breakouts.
-* Generate `PdhpdlSignal`.
+* Generate `SignalModel`.
 
 False breakout logic:
 
@@ -118,7 +118,7 @@ Important cTrader rule:
 * `OnBar()` fires when a new bar starts.
 * Therefore, the last fully closed bar is `Bars.Count - 2`.
 
-### `PdhpdlSignal`
+### `SignalModel`
 
 Data object for signal detection result.
 
@@ -153,7 +153,7 @@ Do not change this back to the obsolete rule where `previous [1]` contains `curr
 and the signal reverses the parent candle's body direction. Keep the C# implementation,
 unit tests, `docs/design/hanjin-signals-26.md`, and the Pine reference library aligned.
 
-### `PdhpdlSignalMarkers`
+### `SignalMarkers`
 
 Draws visual signal markers.
 
@@ -207,7 +207,7 @@ Need to verify unit assumptions carefully:
 * `QuantityToVolumeInUnits` converts lots to volume units.
 * XAUUSD lot/unit/tick-value behavior may not match simple assumptions.
 
-### `PdhpdlOrderPlan`
+### `OrderPlanModel`
 
 Data object for order plan.
 
@@ -230,9 +230,9 @@ Fields include:
 * `Tp1Label`
 * `RunnerLabel`
 
-### `PdhpdlOrderExecutor`
+### `OrderExecutor`
 
-Converts a valid `PdhpdlSignal` into actual cTrader market orders.
+Converts a valid `SignalModel` into actual cTrader market orders.
 
 Current behavior:
 
@@ -265,7 +265,7 @@ There is currently a possible bug:
 * `_timeFrame` exists but may not be assigned unless the constructor receives `timeFrame`.
 * Fix by passing `Bars.TimeFrame.ToString()` from Robot and assigning `_timeFrame = timeFrame`.
 
-### `PdhpdlTradeCsvLogger`
+### `TradeCsvLogger`
 
 Writes trade records to CSV.
 
@@ -294,7 +294,7 @@ CSV headers:
 编号, 多空, 关键位, 信号, 收线入场, 回撤25入场, 回撤38.2入场, 回撤50入场, 备注, Symbol, TimeFrame, EntryTime, EntryPrice, StopPrice, TP1Price, TP2Price, RiskPrice, VolumeInUnits
 ```
 
-### `PdhpdlTradeCsvRecord`
+### `TradeCsvRecordModel`
 
 Data object for one CSV row.
 
@@ -362,12 +362,12 @@ During development, it may be better to not clear drawings on stop so the user c
 
 ### 3. TimeFrame may be missing in CSV
 
-Fix by passing time frame to `PdhpdlOrderExecutor`.
+Fix by passing time frame to `OrderExecutor`.
 
 Robot should call:
 
 ```csharp
-_orderExecutor = new PdhpdlOrderExecutor(
+_orderExecutor = new OrderExecutor(
     this,
     Symbol,
     SymbolName,
@@ -393,7 +393,7 @@ Fix position sizing.
 Suggested safer approach:
 
 1. Temporarily disable real order execution.
-2. Only print `PdhpdlOrderPlan`.
+2. Only print `OrderPlanModel`.
 3. Log:
 
   * Account equity
@@ -474,7 +474,7 @@ Read AGENTS.md and summarize the current project state. Do not modify files yet.
 Then give a specific task:
 
 ```text
-Fix the position sizing bug in PdhpdlOrderExecutor. First disable real order execution and add detailed risk diagnostics to logs. Do not add new features.
+Fix the position sizing bug in OrderExecutor. First disable real order execution and add detailed risk diagnostics to logs. Do not add new features.
 ```
 
 ## Current completed milestones
@@ -507,7 +507,7 @@ This project uses Java-style C# formatting. Put opening braces on the same line 
 declaration or control statement:
 
 ```csharp
-public void ExecuteIfSignal(PdhpdlSignal signal) {
+public void ExecuteIfSignal(Signal signal) {
     if (signal == null || !signal.HasData)
         return;
 }
@@ -534,13 +534,13 @@ Keep methods small, but do not over-abstract.
 
 Prefer responsibility-based class names:
 
-* `PdhpdlUtils`
-* `PdhpdlSignal`
-* `PdhpdlSignalMarkers`
-* `PdhpdlOrderPlan`
-* `PdhpdlOrderExecutor`
-* `PdhpdlTradeCsvLogger`
-* `PdhpdlTradeCsvRecord`
+* `Utils`
+* `SignalModel`
+* `SignalMarkers`
+* `OrderPlanModel`
+* `OrderExecutor`
+* `TradeCsvLogger`
+* `TradeCsvRecordModel`
 
 Avoid names like:
 
@@ -653,7 +653,7 @@ Do not implement these until position sizing is fixed.
 The next task should be:
 
 ```text
-Fix the oversized position sizing in PdhpdlOrderExecutor.
+Fix the oversized position sizing in OrderExecutor.
 
 Requirements:
 1. Temporarily disable actual ExecuteMarketOrder calls.
