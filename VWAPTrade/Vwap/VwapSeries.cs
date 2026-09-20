@@ -4,7 +4,7 @@ using cAlgo.API;
 
 namespace cAlgo.Robots;
 
-// 全图的 VWAP 序列：读 K 线、切分交易日/交易周，把每根已收线 K 线的三个 VWAP 取值缓存下来。
+// 全图的 VWAP 序列：读 K 线、按 VwapPeriod 切分日/周，把每根已收线 K 线的三个 VWAP 取值缓存下来。
 // 画线（VwapSlim）和找信号（SignalDetector）都从这里取值，累积口径只有这一份。
 //
 // 只算已经收线的 K 线：OnBar 触发时最后一根刚开盘、值还会变。调用方每根 K 线调一次 Update()，
@@ -31,18 +31,15 @@ public class VwapSeries {
         }
     }
 
+    // 每一根 K 线都要累积：VWAP 的周期跟能不能下单无关，06:00~10:30 这段不下单，量照样算进去。
     private VwapSampleModel CreateSample(int barIndex) {
         DateTime openTime = _bars.OpenTimes[barIndex];
-        VwapSampleModel sample = TradingSession.IsInSession(openTime) ? AppendInSession(barIndex, openTime) : _calculator.AppendOutsideSession();
+        DateTime? previousOpenTime = barIndex > 0 ? _bars.OpenTimes[barIndex - 1] : (DateTime?)null;
+
+        VwapSampleModel sample = _calculator.Append(_bars.TypicalPrices[barIndex], _bars.TickVolumes[barIndex],
+            VwapPeriod.IsNewDay(openTime, previousOpenTime), VwapPeriod.IsNewWeek(openTime, previousOpenTime));
 
         sample.OpenTime = openTime;
         return sample;
-    }
-
-    private VwapSampleModel AppendInSession(int barIndex, DateTime openTime) {
-        DateTime? previousOpenTime = barIndex > 0 ? _bars.OpenTimes[barIndex - 1] : (DateTime?)null;
-
-        return _calculator.Append(_bars.TypicalPrices[barIndex], _bars.TickVolumes[barIndex],
-            TradingSession.IsNewDaySession(openTime, previousOpenTime), TradingSession.IsNewWeekSession(openTime, previousOpenTime));
     }
 }

@@ -10,10 +10,17 @@ line): a closed bar whose candle pattern (pinbar / engulfing / fractal / harami)
 becomes an entry, sized against a per-trade risk budget. Direction is gated by the VWAP stack —
 only `close > daily > weekly` may go long, only `close < daily < weekly` may go short.
 
-Everything runs on Japan time (`[Robot(TimeZone = TimeZones.TokyoStandardTime)]`). A trading day
-is **10:30 → 06:00** the next morning, Tuesday through Friday (no Monday); a trading week is
-**Tuesday 10:30 → Saturday 06:00**. Outside a session the VWAP does not accumulate and no order
-is opened; open positions are left to their stop or target. See `Vwap/TradingSession.cs`.
+Everything runs on Japan time (`[Robot(TimeZone = TimeZones.TokyoStandardTime)]`). Two separate
+clocks, deliberately decoupled:
+
+- **Indicator periods** (`Vwap/VwapPeriod.cs`) — the daily VWAP accumulates 06:00 → 06:00 the next
+  morning, the weekly from Monday 06:00. Every bar accumulates, including Monday and the pre-open
+  hours, so a VWAP value is never blank.
+- **Order gate** (`Vwap/TradingSession.cs`) — new orders only between 10:30 and 06:00 the next
+  morning, Tuesday through Friday (no Monday). Open positions are left to their stop or target.
+
+So at 10:30, when trading opens, the daily VWAP has already been accumulating for four and a half
+hours — it does not start from zero.
 
 `VWAPTrade.cs` is the Robot lifecycle shell that wires the pieces together (the composition root).
 
@@ -22,8 +29,8 @@ is opened; open positions are left to their stop or target. See `Vwap/TradingSes
 Behavior classes live beside the feature they serve; all data types live in `Models/`
 (suffixed `Model`):
 
-- `Vwap/` — `TradingSession` (the session calendar; both the VWAP reset and the order gate use
-  it, so the two cannot drift), `VwapStack` (the direction gate), `VwapCalculator` (pure
+- `Vwap/` — `VwapPeriod` (when the VWAP resets), `TradingSession` (when orders may open — a
+  different clock, see above), `VwapStack` (the direction gate), `VwapCalculator` (pure
   accumulation) — all unit tested — and `VwapSeries`, which reads `Bars` and caches one
   `VwapSampleModel` per closed bar. It is the single source of VWAP values for drawing and signals.
 - `Signals/` — `SignalDetector` applies the direction gate, builds the daily-VWAP key level for

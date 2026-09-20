@@ -69,13 +69,13 @@ public class VwapSlim {
         //
         // 画的先后就是叠放的上下：后画的盖住先画的。周线最粗，先画、垫在底下；日线最后画、压在最上面，
         // 否则在周二那一场（周与日同时开盘、两条线数值完全相同）日线会被周线整条盖掉。
-        if (!to.IsWeeklySessionStart)
+        if (!to.IsWeekPeriodStart)
             DrawSegment(WeeklyStyle, barIndex, from.Weekly, to.Weekly);
 
-        if (!to.IsDailySessionStart)
+        if (!to.IsDayPeriodStart)
             DrawSegment(PreviousDailyStyle, barIndex, from.PreviousDaily, to.PreviousDaily);
 
-        if (!to.IsDailySessionStart)
+        if (!to.IsDayPeriodStart)
             DrawSegment(DailyStyle, barIndex, from.Daily, to.Daily);
     }
 

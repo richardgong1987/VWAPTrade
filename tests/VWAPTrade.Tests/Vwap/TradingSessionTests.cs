@@ -3,9 +3,10 @@ using cAlgo.Robots;
 using Xunit;
 
 namespace VWAPTrade.Tests.Vwap {
-    // Sessions are in Japan time (the robot sets TimeZones.TokyoStandardTime).
-    //   A trading day runs 10:30 -> 06:00 the next morning, on Tuesday through Friday.
-    //   A trading week runs Tuesday 10:30 -> Saturday 06:00.
+    // When orders may be opened, in Japan time (the robot sets TimeZones.TokyoStandardTime).
+    //   A session runs 10:30 -> 06:00 the next morning, on Tuesday through Friday.
+    //   A week runs Tuesday 10:30 -> Saturday 06:00.
+    // This is only the order gate. The VWAP's own periods start earlier — see VwapPeriodTests.
     // 2026-09-21 is a Monday, so the week under test is 21st Mon ... 27th Sun.
     public class TradingSessionTests {
         private static readonly DateTime Monday = new(2026, 9, 21);
@@ -64,48 +65,6 @@ namespace VWAPTrade.Tests.Vwap {
             Assert.Equal(expected, TradingSession.GetDaySessionStart(At(Tuesday, 23, 55)));
             Assert.Equal(expected, TradingSession.GetDaySessionStart(At(Wednesday, 0, 0)));
             Assert.Equal(expected, TradingSession.GetDaySessionStart(At(Wednesday, 5, 55)));
-        }
-
-        [Fact]
-        public void the_daily_vwap_does_not_reset_at_midnight() {
-            Assert.False(TradingSession.IsNewDaySession(At(Wednesday, 0, 0), At(Tuesday, 23, 55)));
-        }
-
-        [Fact]
-        public void the_daily_vwap_resets_at_the_half_past_ten_open() {
-            Assert.True(TradingSession.IsNewDaySession(At(Wednesday, 10, 30), At(Wednesday, 5, 55)));
-        }
-
-        [Fact]
-        public void the_first_bar_of_a_series_opens_a_session() {
-            Assert.True(TradingSession.IsNewDaySession(At(Wednesday, 10, 30), previous: null));
-            Assert.True(TradingSession.IsNewWeekSession(At(Tuesday, 10, 30), previous: null));
-        }
-
-        [Fact]
-        public void a_bar_outside_the_session_never_opens_one() {
-            Assert.False(TradingSession.IsNewDaySession(At(Wednesday, 7, 0), At(Wednesday, 5, 55)));
-            Assert.False(TradingSession.IsNewDaySession(At(Monday, 12, 0), At(Saturday, 5, 55)));
-        }
-
-        [Fact]
-        public void the_week_resets_only_on_tuesday() {
-            // Wednesday opens a new day but stays inside the week that began on Tuesday.
-            Assert.True(TradingSession.IsNewDaySession(At(Wednesday, 10, 30), At(Wednesday, 5, 55)));
-            Assert.False(TradingSession.IsNewWeekSession(At(Wednesday, 10, 30), At(Wednesday, 5, 55)));
-
-            // Tuesday's open starts both a new day and a new week; the bar before it is the tail of
-            // the previous Friday session.
-            Assert.True(TradingSession.IsNewWeekSession(At(Tuesday, 10, 30), At(Saturday.AddDays(-7), 5, 55)));
-        }
-
-        [Fact]
-        public void the_morning_gap_does_not_open_a_new_week() {
-            // The real previous bar at a 10:30 open is 10:25 — inside the gap. Treating "no day" as
-            // "no week" made every daily open look like a weekly open, which reset the weekly VWAP
-            // every day and left it identical to the daily one.
-            Assert.False(TradingSession.IsNewWeekSession(At(Wednesday, 10, 30), At(Wednesday, 10, 25)));
-            Assert.True(TradingSession.IsNewDaySession(At(Wednesday, 10, 30), At(Wednesday, 10, 25)));
         }
 
         [Fact]

@@ -70,18 +70,19 @@ public class SignalDetector {
         };
     }
 
-    // 回看那一根必须和当前在同一场：日 VWAP 每场开盘都清零，跨场相减得到的是清零那一下的跳变，
-    // 不是斜率。取不到就返回 null，斜率闸门开着时会把这根 K 线拦下（见 VwapStack）。
+    // 回看那一根必须和当前在同一个 VWAP 日（06:00 日切）：日 VWAP 每天 06:00 清零，跨过去相减
+    // 得到的是清零那一下的跳变，不是斜率。取不到就返回 null，斜率闸门开着时会把这根 K 线拦下。
+    // 下单从 10:30 才开始，而日切在 06:00，所以正常情况下回看那一根总在同一天里。
     private VwapSampleModel ReadLookbackSample(int closedBarIndex) {
         int lookbackIndex = closedBarIndex - _settings.VwapSlopeLookbackBars;
 
         if (lookbackIndex < 0)
             return null;
 
-        DateTime? currentSession = TradingSession.GetDaySessionStart(_vwapSeries[closedBarIndex].OpenTime);
-        DateTime? lookbackSession = TradingSession.GetDaySessionStart(_vwapSeries[lookbackIndex].OpenTime);
+        DateTime currentDay = VwapPeriod.GetDayStart(_vwapSeries[closedBarIndex].OpenTime);
+        DateTime lookbackDay = VwapPeriod.GetDayStart(_vwapSeries[lookbackIndex].OpenTime);
 
-        return currentSession == lookbackSession ? _vwapSeries[lookbackIndex] : null;
+        return currentDay == lookbackDay ? _vwapSeries[lookbackIndex] : null;
     }
 
     private CandleModel ReadCandle(int index) {

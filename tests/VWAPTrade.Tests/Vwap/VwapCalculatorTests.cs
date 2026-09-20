@@ -2,15 +2,16 @@ using cAlgo.Robots;
 using Xunit;
 
 namespace VWAPTrade.Tests.Vwap {
-    // VWAP = Σ(hlc3 × volume) / Σ(volume), restarted on each new session. The calculator is fed one
-    // bar at a time; the caller decides where a session starts, so these tests state that directly.
+    // VWAP = Σ(hlc3 × volume) / Σ(volume), restarted on each new period. The calculator is fed one
+    // bar at a time and the caller says where a period starts (VwapPeriod decides that from the bar
+    // time), so these tests state it directly.
     public class VwapCalculatorTests {
         [Fact]
-        public void the_first_bar_of_a_session_is_its_own_vwap() {
+        public void the_first_bar_of_a_period_is_its_own_vwap() {
             VwapCalculator calculator = new();
 
-            VwapSampleModel sample = calculator.Append(typicalPrice: 10.0, volume: 100.0, isDailySessionStart: true,
-                isWeeklySessionStart: true);
+            VwapSampleModel sample = calculator.Append(typicalPrice: 10.0, volume: 100.0, isDayPeriodStart: true,
+                isWeekPeriodStart: true);
 
             Assert.Equal(10.0, sample.Daily, precision: 6);
             Assert.Equal(10.0, sample.Weekly, precision: 6);
@@ -69,8 +70,8 @@ namespace VWAPTrade.Tests.Vwap {
             AppendDayStart(calculator, typicalPrice: 10.0, volume: 100.0);
             AppendSameDay(calculator, typicalPrice: 12.0, volume: 100.0);
 
-            VwapSampleModel sample = calculator.Append(typicalPrice: 20.0, volume: 50.0, isDailySessionStart: true,
-                isWeeklySessionStart: true);
+            VwapSampleModel sample = calculator.Append(typicalPrice: 20.0, volume: 50.0, isDayPeriodStart: true,
+                isWeekPeriodStart: true);
 
             Assert.Equal(20.0, sample.Weekly, precision: 6);
         }
@@ -105,15 +106,15 @@ namespace VWAPTrade.Tests.Vwap {
         public void reports_which_bars_open_a_new_day() {
             VwapCalculator calculator = new();
 
-            Assert.True(AppendDayStart(calculator, typicalPrice: 10.0, volume: 100.0).IsDailySessionStart);
-            Assert.False(AppendSameDay(calculator, typicalPrice: 12.0, volume: 100.0).IsDailySessionStart);
+            Assert.True(AppendDayStart(calculator, typicalPrice: 10.0, volume: 100.0).IsDayPeriodStart);
+            Assert.False(AppendSameDay(calculator, typicalPrice: 12.0, volume: 100.0).IsDayPeriodStart);
         }
 
         [Fact]
-        public void falls_back_to_the_bar_price_while_the_session_has_no_volume() {
+        public void falls_back_to_the_bar_price_while_there_is_no_volume() {
             VwapCalculator calculator = new();
 
-            // A dead session would divide by zero; the bar's own hlc3 keeps the line continuous.
+            // A dead patch of market would divide by zero; the bar's own hlc3 keeps the line continuous.
             VwapSampleModel sample = AppendDayStart(calculator, typicalPrice: 10.0, volume: 0.0);
 
             Assert.Equal(10.0, sample.Daily, precision: 6);
@@ -131,39 +132,10 @@ namespace VWAPTrade.Tests.Vwap {
             Assert.Equal(20.0, sample.Daily, precision: 6);
         }
 
-        [Fact]
-        public void a_bar_outside_the_trading_session_has_no_vwap_value() {
-            VwapCalculator calculator = new();
-
-            AppendDayStart(calculator, typicalPrice: 10.0, volume: 100.0);
-            VwapSampleModel sample = calculator.AppendOutsideSession();
-
-            // NaN keeps the line broken over the gap and stops the direction gate from firing there.
-            Assert.True(double.IsNaN(sample.Daily));
-            Assert.True(double.IsNaN(sample.Weekly));
-            Assert.True(double.IsNaN(sample.PreviousDaily));
-            Assert.False(sample.IsDailySessionStart);
-        }
-
-        [Fact]
-        public void the_gap_between_sessions_does_not_feed_into_the_next_session() {
-            VwapCalculator calculator = new();
-
-            AppendDayStart(calculator, typicalPrice: 10.0, volume: 100.0);
-            AppendSameDay(calculator, typicalPrice: 12.0, volume: 100.0);
-            calculator.AppendOutsideSession();
-
-            // The new session starts from its own first bar, and yesterday's close of 11 carries over.
-            VwapSampleModel sample = AppendDayStart(calculator, typicalPrice: 20.0, volume: 50.0);
-
-            Assert.Equal(20.0, sample.Daily, precision: 6);
-            Assert.Equal(11.0, sample.PreviousDaily, precision: 6);
-        }
-
         private static VwapSampleModel AppendDayStart(VwapCalculator calculator, double typicalPrice, double volume) =>
-            calculator.Append(typicalPrice, volume, isDailySessionStart: true, isWeeklySessionStart: false);
+            calculator.Append(typicalPrice, volume, isDayPeriodStart: true, isWeekPeriodStart: false);
 
         private static VwapSampleModel AppendSameDay(VwapCalculator calculator, double typicalPrice, double volume) =>
-            calculator.Append(typicalPrice, volume, isDailySessionStart: false, isWeeklySessionStart: false);
+            calculator.Append(typicalPrice, volume, isDayPeriodStart: false, isWeekPeriodStart: false);
     }
 }
