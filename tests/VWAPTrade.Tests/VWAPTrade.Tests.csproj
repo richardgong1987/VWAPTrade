@@ -2,7 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
+    <!-- The cBot project does not enable nullable analysis; linked cBot sources are compiled
+         here under the same rules so they do not raise warnings they never raise in the cBot. -->
+    <Nullable>disable</Nullable>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
@@ -15,14 +17,17 @@
   <!-- Unit tests for the cBot's pure (cAlgo-free) logic. The classes under test are LINKED in
        below (never a ProjectReference) so the tests never pull in the cTrader.Automate /
        cAlgo.API dependency. Only cAlgo-free files may be linked here. -->
-  <ItemGroup Label="Orders under test">
+  <ItemGroup Label="Behavior under test">
     <Compile Include="..\..\VWAPTrade\Orders\OrderPlanner.cs" Link="Orders\OrderPlanner.cs" />
+    <Compile Include="..\..\VWAPTrade\Risk\RiskGuard.cs" Link="Risk\RiskGuard.cs" />
   </ItemGroup>
 
   <!-- Data models the planner depends on. CAlgoSymbolModel is intentionally excluded: it is the
        only Models/ file that references cAlgo.API. -->
   <ItemGroup Label="Models under test">
-    <Compile Include="..\..\VWAPTrade\Models\PendingOrderRequestModel.cs" Link="Models\PendingOrderRequestModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\SignalModel.cs" Link="Models\SignalModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\SignalSideModel.cs" Link="Models\SignalSideModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\TradeLevelModel.cs" Link="Models\TradeLevelModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\OrderPlanModel.cs" Link="Models\OrderPlanModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\TradeDirectionModel.cs" Link="Models\TradeDirectionModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\ISymbolModel.cs" Link="Models\ISymbolModel.cs" />
