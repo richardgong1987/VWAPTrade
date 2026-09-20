@@ -29,8 +29,9 @@ public class OrderExecutor {
     private readonly Dictionary<int, string> _positionCsvIds = new();
     private readonly Dictionary<int, double> _positionEntryEquities = new();
 
-    // 保本止损要用开仓时的 R（止损距离）来算触发价，所以开仓时记下来，平仓时清掉。
-    private readonly Dictionary<int, double> _positionRiskPrices = new();
+    // 开仓时的下单方案：保本止损要用它的 R（止损距离）算触发价，平仓那一行也要用它的 VWAP 读数。
+    // 开仓时记下来，平仓时清掉。
+    private readonly Dictionary<int, OrderPlanModel> _positionPlans = new();
     private readonly HashSet<int> _positionsProtected = new();
 
     public OrderExecutor(Robot robot, string symbolName, string timeFrame, string orderLabel, OrderPlanner planner,
@@ -69,11 +70,11 @@ public class OrderExecutor {
         if (_positionsProtected.Contains(position.Id))
             return;
 
-        if (!_positionRiskPrices.TryGetValue(position.Id, out double riskPrice) || riskPrice <= 0.0)
+        if (!_positionPlans.TryGetValue(position.Id, out OrderPlanModel plan) || plan.RiskPrice <= 0.0)
             return;
 
         bool isLong = position.TradeType == TradeType.Buy;
-        double profitDistance = _settings.BreakevenTriggerR * riskPrice;
+        double profitDistance = _settings.BreakevenTriggerR * plan.RiskPrice;
         double trigger = isLong ? position.EntryPrice + profitDistance : position.EntryPrice - profitDistance;
 
         if (!HasReached(isLong, position.CurrentPrice, trigger))
@@ -146,8 +147,21 @@ public class OrderExecutor {
         planModel.Label = label;
         planModel.SignalName = signalModel.Label;
         planModel.KeyLevel = signalModel.Level.Name;
+        CopyVwapReading(planModel, signalModel);
 
         return ExecutePlan(planModel);
+    }
+
+    private static void CopyVwapReading(OrderPlanModel planModel, SignalModel signalModel) {
+        planModel.GapX = signalModel.GapX;
+        planModel.SlopeX = signalModel.SlopeX;
+
+        if (signalModel.Strong == null)
+            return;
+
+        planModel.DailyVwap = signalModel.Strong.DailyVwap;
+        planModel.WeeklyVwap = signalModel.Strong.WeeklyVwap;
+        planModel.Atr14H1 = signalModel.Strong.Atr14H1;
     }
 
     // Gates on the level's own label, so the other levels stay free to open their own position.
@@ -187,7 +201,7 @@ public class OrderExecutor {
 
         _positionCsvIds[position.Id] = csvId;
         _positionEntryEquities[position.Id] = planModel.AccountEquity;
-        _positionRiskPrices[position.Id] = planModel.RiskPrice;
+        _positionPlans[position.Id] = planModel;
         _robot.Print("*****CSV trade record added. Path: {0}", _csvLogger.FilePath);
         return true;
     }
@@ -199,12 +213,13 @@ public class OrderExecutor {
         string csvId = GetPositionCsvId(args.Position);
         double entryEquity = GetPositionEntryEquity(args.Position);
         double closePrice = GetClosePrice(args.Position);
+        _positionPlans.TryGetValue(args.Position.Id, out OrderPlanModel entryPlan);
         string closeRecordId = _csvLogger.AppendClose(args.Position, args.Reason, csvId, _symbolName, _timeFrame, _robot.Server.Time,
-            closePrice, entryEquity, _robot.Account.Equity);
+            closePrice, entryEquity, _robot.Account.Equity, entryPlan);
 
         _positionCsvIds.Remove(args.Position.Id);
         _positionEntryEquities.Remove(args.Position.Id);
-        _positionRiskPrices.Remove(args.Position.Id);
+        _positionPlans.Remove(args.Position.Id);
         _positionsProtected.Remove(args.Position.Id);
 
         if (!string.IsNullOrWhiteSpace(closeRecordId))

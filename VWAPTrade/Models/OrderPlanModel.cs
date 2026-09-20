@@ -24,4 +24,11 @@ public class OrderPlanModel {
 
     public string KeyLevel { get; set; } = "";
     public string SignalName { get; set; } = "";
+
+    // 下单当时的三道闸门读数，写进交易 CSV 用来调参。
+    public double DailyVwap { get; set; } = double.NaN;
+    public double WeeklyVwap { get; set; } = double.NaN;
+    public double Atr14H1 { get; set; } = double.NaN;
+    public double GapX { get; set; } = double.NaN;
+    public double SlopeX { get; set; } = double.NaN;
 }

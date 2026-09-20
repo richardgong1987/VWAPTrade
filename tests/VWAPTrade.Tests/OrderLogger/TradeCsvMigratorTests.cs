@@ -6,8 +6,11 @@ namespace VWAPTrade.Tests.OrderLogger {
     // the 22-column layout (today's columns plus 「回撤开仓模式」at index 3 and 「挂单ID」at index 19)
     // and that layout trailed by indicator-state columns.
     public class TradeCsvMigratorTests {
-        private const string CurrentHeader =
+        private const string LegacyHeader =
             "编号,关键位,信号,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,持仓ID,成交ID";
+
+        // The current schema is the legacy one plus seven VWAP reading columns at the end.
+        private const string CurrentHeader = LegacyHeader + ",多空,DailyVWAP,WeeklyVWAP,ATR14_H1,GapX,SlopeX,最终结果";
 
         private const string PreviousHeader =
             "编号,关键位,信号,回撤开仓模式,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,挂单ID,持仓ID,成交ID";
@@ -17,8 +20,11 @@ namespace VWAPTrade.Tests.OrderLogger {
         private const string PreviousRow =
             "1,Short1,S_Pin_1,收线入场,ENTRY,XAUUSD,h1,2026-09-18 13:00:00,2400,,2410,2380,10,10,,10000,,0,,777,123,456";
 
-        private const string ExpectedRow =
+        private const string LegacyRow =
             "1,Short1,S_Pin_1,ENTRY,XAUUSD,h1,2026-09-18 13:00:00,2400,,2410,2380,10,10,,10000,,0,,123,456";
+
+        // Old rows carry no VWAP readings, so migration pads them with seven empty columns.
+        private const string ExpectedRow = LegacyRow + ",,,,,,,";
 
         [Fact]
         public void leaves_a_file_that_is_already_on_the_current_schema_alone() {
@@ -93,13 +99,24 @@ namespace VWAPTrade.Tests.OrderLogger {
         }
 
         [Fact]
-        public void replaces_a_stale_header_when_the_rows_are_already_current() {
-            string[] lines = { PreviousHeader, ExpectedRow };
+        public void pads_rows_from_the_build_before_the_vwap_columns_existed() {
+            // The whole of the previous schema, header and rows: only the seven new columns are
+            // missing, so every row keeps its values and gains seven empty ones.
+            string[] lines = { LegacyHeader, LegacyRow };
 
             string[] upgraded = TradeCsvMigrator.Upgrade(lines, CurrentHeader);
 
             Assert.NotNull(upgraded);
             Assert.Equal(CurrentHeader, upgraded[0]);
+            Assert.Equal(ExpectedRow, upgraded[1]);
+            Assert.Equal(27, upgraded[1].Split(',').Length);
+        }
+
+        [Fact]
+        public void leaves_rows_that_already_carry_vwap_readings_untouched() {
+            string[] lines = { CurrentHeader, LegacyRow + ",空,2410.5,2402.25,3.4,2.426471,0.735294,亏损" };
+
+            Assert.Null(TradeCsvMigrator.Upgrade(lines, CurrentHeader));
         }
     }
 }

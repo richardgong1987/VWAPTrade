@@ -13,9 +13,13 @@ namespace cAlgo.Robots;
 //     simply truncated — the leading columns never changed order.
 // Anything else is left untouched: an unrecognised row is safer kept than guessed at.
 public static class TradeCsvMigrator {
-    // 「回撤开仓模式」与「挂单ID」两列已废弃（只剩市价单，没有挂单，也没有回撤模式可选），
-    // 当前 schema 是 20 列。
-    private const int CurrentColumnCount = 20;
+    // 当前 schema 是 27 列：20 列的业务字段，加上末尾 7 列 VWAP 读数（多空 / DailyVWAP /
+    // WeeklyVWAP / ATR14_H1 / GapX / SlopeX / 最终结果）。
+    private const int CurrentColumnCount = 27;
+
+    // 加 VWAP 读数之前的 20 列。「回撤开仓模式」与「挂单ID」两列在更早的时候已经废弃。
+    // 所有可识别的历史行都先收敛到这 20 列，再在末尾补空列凑到当前的 27 列。
+    private const int PreviousColumnCount = 20;
 
     // 去掉末尾那串波动/趋势状态列之后、尚未去掉上面两列的 22 列布局。所有可识别的历史行都先收敛到它，
     // 再由 RemoveDroppedColumns 落到当前的 20 列。
@@ -25,6 +29,9 @@ public static class TradeCsvMigrator {
 
     // 曾经在末尾带过状态列的历史 schema。列序从未变过，截掉末尾多出来的部分即可回到 22 列布局。
     // 24 列还对应过一种更早、列序不同的布局，所以只在表头对得上时才按状态列处理（见 MigrateRows）。
+    //
+    // 注意 27 列与当前 schema 撞上了：只有表头也是当前表头时，27 列才算「已经是新格式」，
+    // 否则就是下面这个带 DMI 状态列的旧布局。
     private const int ColumnCountWithAtrState = 24;
     private const int ColumnCountWithDmsState = 27;
     private const int ColumnCountWithAdxPreviousState = 28;
@@ -45,7 +52,7 @@ public static class TradeCsvMigrator {
         if (hasCurrentHeader && !NeedsRowMigration(lines))
             return null;
 
-        MigrateRows(lines, lines[0] == PreviousHeaderBeforeDmsState);
+        MigrateRows(lines, hasCurrentHeader, lines[0] == PreviousHeaderBeforeDmsState);
 
         if (NeedsRowMigration(lines))
             return null;
@@ -66,24 +73,48 @@ public static class TradeCsvMigrator {
         return false;
     }
 
-    private static void MigrateRows(string[] lines, bool isHeaderBeforeDmsState) {
+    private static void MigrateRows(string[] lines, bool isCurrentHeader, bool isHeaderBeforeDmsState) {
         for (int i = 1; i < lines.Length; i++) {
             if (string.IsNullOrWhiteSpace(lines[i]))
                 continue;
 
             string[] columns = lines[i].Split(',');
 
-            if (columns.Length == CurrentColumnCount)
+            if (isCurrentHeader && columns.Length == CurrentColumnCount)
                 continue;
 
-            if (columns.Length == BusinessColumnCount) {
-                lines[i] = string.Join(",", RemoveDroppedColumns(columns));
-                continue;
-            }
+            string[] previousLayout = ToPreviousLayout(columns, isHeaderBeforeDmsState);
 
-            if (HasTrailingStateColumns(columns.Length, isHeaderBeforeDmsState))
-                lines[i] = string.Join(",", RemoveDroppedColumns(TrimToBusinessColumns(columns)));
+            // 认不出布局的行原样留着，Upgrade 会因此整份文件都不动。
+            if (previousLayout != null)
+                lines[i] = string.Join(",", PadToCurrentLayout(previousLayout));
         }
+    }
+
+    // 把任意可识别的历史布局收敛到 20 列；认不出来就返回 null。
+    private static string[] ToPreviousLayout(string[] columns, bool isHeaderBeforeDmsState) {
+        if (columns.Length == PreviousColumnCount)
+            return columns;
+
+        if (columns.Length == BusinessColumnCount)
+            return RemoveDroppedColumns(columns);
+
+        if (HasTrailingStateColumns(columns.Length, isHeaderBeforeDmsState))
+            return RemoveDroppedColumns(TrimToBusinessColumns(columns));
+
+        return null;
+    }
+
+    // 旧行没有 VWAP 读数，末尾补空列即可 —— 新列一律加在末尾，前面的列序不用动。
+    private static string[] PadToCurrentLayout(string[] previousLayout) {
+        string[] padded = new string[CurrentColumnCount];
+        Array.Copy(previousLayout, padded, previousLayout.Length);
+
+        for (int i = previousLayout.Length; i < padded.Length; i++) {
+            padded[i] = "";
+        }
+
+        return padded;
     }
 
     private static bool HasTrailingStateColumns(int columnCount, bool isHeaderBeforeDmsState) {

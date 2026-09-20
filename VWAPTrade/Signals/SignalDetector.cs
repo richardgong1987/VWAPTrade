@@ -35,8 +35,8 @@ public class SignalDetector {
         VwapSampleModel vwap = _vwapSeries[closedBarIndex];
 
         // 排列、间距、斜率三道闸门，任何一道过不了这根 K 线就不做。
-        SignalSideModel side = VwapStack.ResolveSide(ReadStrong(closedBarIndex, current, vwap), _settings.VwapGapMin,
-            _settings.VwapSlopeMin);
+        VwapStrongReadingModel strong = ReadStrong(closedBarIndex, current, vwap);
+        SignalSideModel side = VwapStack.ResolveSide(strong, _settings.VwapGapMin, _settings.VwapSlopeMin);
 
         if (side == SignalSideModel.None)
             return new List<SignalModel>();
@@ -50,6 +50,9 @@ public class SignalDetector {
 
         signal.BarIndex = closedBarIndex;
         signal.BarTime = _chartBars.OpenTimes[closedBarIndex];
+        signal.Strong = strong;
+        signal.GapX = VwapStack.GetGapX(strong, side);
+        signal.SlopeX = VwapStack.GetSlopeX(strong, side);
         return new List<SignalModel> { signal };
     }
 

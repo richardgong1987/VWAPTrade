@@ -62,15 +62,27 @@ public class TradeCsvLogger {
             RiskPrice = Math.Abs(position.EntryPrice - (position.StopLoss ?? planModel.StopPrice)),
             VolumeInUnits = position.VolumeInUnits,
             PositionId = position.Id.ToString(),
-            DealId = GetOpenDealId(position)
+            DealId = GetOpenDealId(position),
+            Side = GetSideText(planModel.DirectionModel),
+            DailyVwap = planModel.DailyVwap,
+            WeeklyVwap = planModel.WeeklyVwap,
+            Atr14H1 = planModel.Atr14H1,
+            GapX = planModel.GapX,
+            SlopeX = planModel.SlopeX
         };
 
         Append(record);
         return record.Id;
     }
 
+    private static string GetSideText(TradeDirectionModel directionModel) {
+        return directionModel == TradeDirectionModel.Long ? "多" : "空";
+    }
+
+    // entryPlan 是开仓时那一份下单方案（见 OrderExecutor 的 _positionPlans）。把它的 VWAP 读数
+    // 抄到平仓行，一行里就同时有 GapX/SlopeX 和这笔的盈亏，调参时不用再按持仓 ID 去拼两行。
     public string AppendClose(Position position, PositionCloseReason reason, string csvId, string symbolName, string timeFrame,
-        DateTime serverTime, double closePrice, double entryAccountEquity, double closeAccountEquity) {
+        DateTime serverTime, double closePrice, double entryAccountEquity, double closeAccountEquity, OrderPlanModel entryPlan) {
         if (position == null)
             return "";
 
@@ -80,11 +92,20 @@ public class TradeCsvLogger {
         if (resolvedEntryAccountEquity <= 0.0 && closeAccountEquity > 0.0)
             resolvedEntryAccountEquity = closeAccountEquity - position.NetProfit;
 
+        string finalResult = position.NetProfit >= 0.0 ? "盈利" : "亏损";
+
         var record = new TradeCsvRecordModel {
             Id = GetCloseRecordId(csvId, reason),
             KeyLevel = "",
             Signal = "close",
-            Comment = position.NetProfit >= 0.0 ? "盈利" : "亏损",
+            Comment = finalResult,
+            FinalResult = finalResult,
+            Side = position.TradeType == TradeType.Buy ? "多" : "空",
+            DailyVwap = entryPlan?.DailyVwap ?? double.NaN,
+            WeeklyVwap = entryPlan?.WeeklyVwap ?? double.NaN,
+            Atr14H1 = entryPlan?.Atr14H1 ?? double.NaN,
+            GapX = entryPlan?.GapX ?? double.NaN,
+            SlopeX = entryPlan?.SlopeX ?? double.NaN,
             Symbol = symbolName,
             TimeFrame = timeFrame,
             EntryAccountEquity = resolvedEntryAccountEquity,
@@ -121,7 +142,10 @@ public class TradeCsvLogger {
             Escape(recordModel.VolumeInUnits.ToString(CultureInfo.InvariantCulture)), Escape(recordModel.CloseReason),
             Escape(FormatOptionalNumber(recordModel.EntryAccountEquity)), Escape(FormatOptionalNumber(recordModel.CloseAccountEquity)),
             Escape(recordModel.ProfitLoss.ToString(CultureInfo.InvariantCulture)), Escape(recordModel.CloseTime),
-            Escape(recordModel.PositionId), Escape(recordModel.DealId));
+            Escape(recordModel.PositionId), Escape(recordModel.DealId),
+            Escape(recordModel.Side), Escape(FormatReading(recordModel.DailyVwap)), Escape(FormatReading(recordModel.WeeklyVwap)),
+            Escape(FormatReading(recordModel.Atr14H1)), Escape(FormatReading(recordModel.GapX)),
+            Escape(FormatReading(recordModel.SlopeX)), Escape(recordModel.FinalResult));
         System.IO.File.AppendAllText(_filePath, line + Environment.NewLine, CsvEncoding);
     }
 
@@ -147,9 +171,10 @@ public class TradeCsvLogger {
     }
 
     private static string BuildHeader() {
-        // "多空" (Side) 字段已废弃，从当前表头中移除。
+        // 新列一律加在末尾：旧文件升级时只要在后面补空列即可，前面的列序不用动（见 TradeCsvMigrator）。
         return string.Join(",", "编号", "关键位", "信号", "备注", "交易品种", "时间周期", "入场时间", "入场价格", "平仓价格", "止损价格", "止盈价格", "风险价格距离", "下单数量",
-            "平仓原因", "开仓账户权益", "平仓账户权益", "平仓盈亏", "平仓时间", "持仓ID", "成交ID");
+            "平仓原因", "开仓账户权益", "平仓账户权益", "平仓盈亏", "平仓时间", "持仓ID", "成交ID",
+            "多空", "DailyVWAP", "WeeklyVWAP", "ATR14_H1", "GapX", "SlopeX", "最终结果");
     }
 
     private static string FormatOptionalNumber(double value) {
@@ -157,6 +182,15 @@ public class TradeCsvLogger {
             return "";
 
         return value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    // VWAP 读数可以是负数（逆着方向走的 SlopeX），所以不能套用 FormatOptionalNumber 的「≤0 留空」。
+    // 只有取不到值（NaN/无穷）才留空。保留 6 位小数，GapX/SlopeX 这种小数值才看得出差别。
+    private static string FormatReading(double value) {
+        if (double.IsNaN(value) || double.IsInfinity(value))
+            return "";
+
+        return value.ToString("0.######", CultureInfo.InvariantCulture);
     }
 
     private static string Escape(string value) {

@@ -20,6 +20,13 @@ public class SignalModel {
 
     public double Low { get; set; }
 
+    // 下单当时的三道闸门读数，一路带到交易 CSV，方便回头拿 GapX/SlopeX 对着盈亏调参。
+    public VwapStrongReadingModel Strong { get; set; }
+
+    public double GapX { get; set; }
+
+    public double SlopeX { get; set; }
+
     public int BarIndex { get; set; }
 
     public DateTime BarTime { get; set; }
