@@ -69,7 +69,7 @@ public class VwapSlim {
         if (!to.IsDailySessionStart)
             DrawSegment(DailyStyle, barIndex, from.Daily, to.Daily);
 
-        if (!VwapCalculator.IsNewWeek(to.OpenTime, from.OpenTime))
+        if (!TradingSession.IsNewWeekSession(to.OpenTime, from.OpenTime))
             DrawSegment(WeeklyStyle, barIndex, from.Weekly, to.Weekly);
 
         if (!to.IsDailySessionStart)

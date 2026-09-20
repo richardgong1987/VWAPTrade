@@ -1,7 +1,7 @@
 using cAlgo.Robots;
 using Xunit;
 
-namespace VWAPTrade.Tests.LineDrawer {
+namespace VWAPTrade.Tests.Vwap {
     // VWAP = Σ(hlc3 × volume) / Σ(volume), restarted on each new session. The calculator is fed one
     // bar at a time; the caller decides where a session starts, so these tests state that directly.
     public class VwapCalculatorTests {
@@ -129,6 +129,35 @@ namespace VWAPTrade.Tests.LineDrawer {
 
             // The zero-volume bar contributes nothing to either sum: (20×100) / 100 = 20.
             Assert.Equal(20.0, sample.Daily, precision: 6);
+        }
+
+        [Fact]
+        public void a_bar_outside_the_trading_session_has_no_vwap_value() {
+            VwapCalculator calculator = new();
+
+            AppendDayStart(calculator, typicalPrice: 10.0, volume: 100.0);
+            VwapSampleModel sample = calculator.AppendOutsideSession();
+
+            // NaN keeps the line broken over the gap and stops the direction gate from firing there.
+            Assert.True(double.IsNaN(sample.Daily));
+            Assert.True(double.IsNaN(sample.Weekly));
+            Assert.True(double.IsNaN(sample.PreviousDaily));
+            Assert.False(sample.IsDailySessionStart);
+        }
+
+        [Fact]
+        public void the_gap_between_sessions_does_not_feed_into_the_next_session() {
+            VwapCalculator calculator = new();
+
+            AppendDayStart(calculator, typicalPrice: 10.0, volume: 100.0);
+            AppendSameDay(calculator, typicalPrice: 12.0, volume: 100.0);
+            calculator.AppendOutsideSession();
+
+            // The new session starts from its own first bar, and yesterday's close of 11 carries over.
+            VwapSampleModel sample = AppendDayStart(calculator, typicalPrice: 20.0, volume: 50.0);
+
+            Assert.Equal(20.0, sample.Daily, precision: 6);
+            Assert.Equal(11.0, sample.PreviousDaily, precision: 6);
         }
 
         private static VwapSampleModel AppendDayStart(VwapCalculator calculator, double typicalPrice, double volume) =>

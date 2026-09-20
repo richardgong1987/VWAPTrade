@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using cAlgo.API;
 
@@ -31,12 +32,17 @@ public class VwapSeries {
     }
 
     private VwapSampleModel CreateSample(int barIndex) {
-        bool isDailySessionStart = barIndex == 0 || VwapCalculator.IsNewDay(_bars.OpenTimes[barIndex], _bars.OpenTimes[barIndex - 1]);
-        bool isWeeklySessionStart = barIndex == 0 || VwapCalculator.IsNewWeek(_bars.OpenTimes[barIndex], _bars.OpenTimes[barIndex - 1]);
+        DateTime openTime = _bars.OpenTimes[barIndex];
+        VwapSampleModel sample = TradingSession.IsInSession(openTime) ? AppendInSession(barIndex, openTime) : _calculator.AppendOutsideSession();
 
-        VwapSampleModel sample = _calculator.Append(_bars.TypicalPrices[barIndex], _bars.TickVolumes[barIndex], isDailySessionStart,
-            isWeeklySessionStart);
-        sample.OpenTime = _bars.OpenTimes[barIndex];
+        sample.OpenTime = openTime;
         return sample;
+    }
+
+    private VwapSampleModel AppendInSession(int barIndex, DateTime openTime) {
+        DateTime? previousOpenTime = barIndex > 0 ? _bars.OpenTimes[barIndex - 1] : (DateTime?)null;
+
+        return _calculator.Append(_bars.TypicalPrices[barIndex], _bars.TickVolumes[barIndex],
+            TradingSession.IsNewDaySession(openTime, previousOpenTime), TradingSession.IsNewWeekSession(openTime, previousOpenTime));
     }
 }

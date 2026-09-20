@@ -34,20 +34,16 @@ public class VwapCalculator {
         };
     }
 
-    // 交易日按服务器时间的自然日切分，不是 TradingView 的交易所时段，因此日界附近可能与 Pine 原
-    // 脚本差一两根 K 线。
-    public static bool IsNewDay(DateTime current, DateTime previous) {
-        return current.Date != previous.Date;
-    }
-
-    // 交易周以周一为界：周一开盘那根 K 线开新的一周，周末的跳空不算。
-    public static bool IsNewWeek(DateTime current, DateTime previous) {
-        return GetWeekStart(current) != GetWeekStart(previous);
-    }
-
-    public static DateTime GetWeekStart(DateTime time) {
-        int daysSinceMonday = ((int)time.DayOfWeek + 6) % 7;
-        return time.Date.AddDays(-daysSinceMonday);
+    // 不在交易时段里的 K 线：不累积，也不产生取值。三条线都是 NaN，画线时留空，
+    // 方向闸门（VwapStack）看到 NaN 就不给任何方向放行。
+    // 累积量原样留着：下一场开盘那根 K 线自己会带 isDailySessionStart 把它们清零。
+    public VwapSampleModel AppendOutsideSession() {
+        return new VwapSampleModel {
+            Daily = double.NaN,
+            Weekly = double.NaN,
+            PreviousDaily = double.NaN,
+            IsDailySessionStart = false
+        };
     }
 
     private static void Accumulate(bool isSessionStart, ref double priceVolume, ref double volume, double typicalPrice,
