@@ -17,12 +17,14 @@ namespace VWAPTrade.Tests.Vwap {
             // at the same moment, so they accumulate the same bars.
             Assert.All(BarsOfSessionStartingOn(week, dayOfMonth: 22), sample => Assert.Equal(sample.Daily, sample.Weekly, precision: 9));
 
-            // From Wednesday on, the day restarts while the week keeps running, so they must differ.
+            // From Wednesday on, the day restarts while the week keeps running. With a trending
+            // price the week's average lags well behind the day's, so they must be far apart.
             foreach (int dayOfMonth in new[] { 23, 24, 25 }) {
                 List<VwapSampleModel> session = BarsOfSessionStartingOn(week, dayOfMonth);
                 VwapSampleModel last = session[session.Count - 1];
 
-                Assert.NotEqual(last.Daily, last.Weekly, precision: 6);
+                Assert.True(Math.Abs(last.Daily - last.Weekly) > 1.0,
+                    $"day {dayOfMonth}: daily {last.Daily} and weekly {last.Weekly} should have diverged");
             }
         }
 
@@ -45,8 +47,9 @@ namespace VWAPTrade.Tests.Vwap {
             }
         }
 
-        // Monday 00:00 through Saturday 12:00 in 5-minute bars, priced with a small sawtooth so the
-        // daily and weekly averages genuinely drift apart.
+        // Monday 00:00 through Saturday 12:00 in 5-minute bars. The price trends steadily upward so
+        // a session's average and the week's running average genuinely separate — an oscillation
+        // around a fixed level would make both converge to that level and prove nothing.
         private static List<VwapSampleModel> WalkOneWeek() {
             List<VwapSampleModel> samples = new();
             VwapCalculator calculator = new();
@@ -56,7 +59,7 @@ namespace VWAPTrade.Tests.Vwap {
             double price = 4000.0;
 
             for (int i = 0; cursor < end; i++) {
-                price += i % 7 - 3;
+                price += 0.5 + (i % 5 - 2) * 0.1; // steady uptrend with a small wiggle
 
                 VwapSampleModel sample = TradingSession.IsInSession(cursor)
                     ? calculator.Append(price, volume: 100.0, TradingSession.IsNewDaySession(cursor, previous),
@@ -73,7 +76,7 @@ namespace VWAPTrade.Tests.Vwap {
         }
 
         private static List<VwapSampleModel> BarsOfSessionStartingOn(List<VwapSampleModel> week, int dayOfMonth) {
-            DateTime sessionStart = new(2026, 9, dayOfMonth, 10, 0, 0);
+            DateTime sessionStart = new(2026, 9, dayOfMonth, 10, 30, 0);
 
             return week.FindAll(sample => TradingSession.GetDaySessionStart(sample.OpenTime) == sessionStart);
         }

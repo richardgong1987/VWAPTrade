@@ -14,7 +14,7 @@ namespace VWAPTrade.Tests.Risk {
         public void orders_are_allowed_inside_a_session() {
             RiskGuard guard = new();
 
-            Assert.False(guard.ShouldBlockNewOrder(At(Tuesday, 10, 0)));
+            Assert.False(guard.ShouldBlockNewOrder(At(Tuesday, 10, 30)));
             Assert.False(guard.ShouldBlockNewOrder(At(Wednesday, 3, 0)));
         }
 
@@ -23,7 +23,7 @@ namespace VWAPTrade.Tests.Risk {
             RiskGuard guard = new();
 
             Assert.True(guard.ShouldBlockNewOrder(At(Wednesday, 6, 0)));
-            Assert.True(guard.ShouldBlockNewOrder(At(Wednesday, 9, 59)));
+            Assert.True(guard.ShouldBlockNewOrder(At(Wednesday, 10, 29)));
         }
 
         [Fact]
@@ -31,7 +31,7 @@ namespace VWAPTrade.Tests.Risk {
             RiskGuard guard = new();
 
             Assert.True(guard.ShouldBlockNewOrder(At(Monday, 15, 0)));
-            Assert.True(guard.ShouldBlockNewOrder(At(Saturday, 10, 0)));
+            Assert.True(guard.ShouldBlockNewOrder(At(Saturday, 10, 30)));
         }
 
         [Fact]

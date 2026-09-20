@@ -5,26 +5,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A **cTrader cBot** (automated trading robot) written in C# against the cAlgo API, targeting
-`net6.0`. The strategy is **VWAP break and reverse**: the daily and weekly VWAP act as key
-levels, and a closed bar that touches one of them and closes back on the other side with a
-matching candle pattern (pinbar / engulfing / fractal / harami) becomes an entry, sized against
-a per-trade risk budget. `VWAPTrade.cs` is the Robot lifecycle shell that wires the pieces
-together (the composition root); the only user-facing settings are 风险% and 止盈目标.
+`net6.0`. The strategy is **VWAP break and reverse**. The daily VWAP is the key level (the yellow
+line): a closed bar whose candle pattern (pinbar / engulfing / fractal / harami) touches it
+becomes an entry, sized against a per-trade risk budget. Direction is gated by the VWAP stack —
+only `close > daily > weekly` may go long, only `close < daily < weekly` may go short.
+
+Everything runs on Japan time (`[Robot(TimeZone = TimeZones.TokyoStandardTime)]`). A trading day
+is **10:30 → 06:00** the next morning, Tuesday through Friday (no Monday); a trading week is
+**Tuesday 10:30 → Saturday 06:00**. Outside a session the VWAP does not accumulate and no order
+is opened; open positions are left to their stop or target. See `Vwap/TradingSession.cs`.
+
+`VWAPTrade.cs` is the Robot lifecycle shell that wires the pieces together (the composition root).
 
 ## Module map
 
 Behavior classes live beside the feature they serve; all data types live in `Models/`
 (suffixed `Model`):
 
-- `Vwap/` — `VwapCalculator` (pure accumulation + session boundaries, unit tested) and
-  `VwapSeries`, which reads `Bars` and caches one `VwapSampleModel` per closed bar. It is the
-  single source of VWAP values for both drawing and signals.
-- `Signals/` — `SignalDetector` builds the two VWAP key levels for the closed bar and asks
-  `Biz/MainBiz` which candle patterns hit them.
+- `Vwap/` — `TradingSession` (the session calendar; both the VWAP reset and the order gate use
+  it, so the two cannot drift), `VwapStack` (the direction gate), `VwapCalculator` (pure
+  accumulation) — all unit tested — and `VwapSeries`, which reads `Bars` and caches one
+  `VwapSampleModel` per closed bar. It is the single source of VWAP values for drawing and signals.
+- `Signals/` — `SignalDetector` applies the direction gate, builds the daily-VWAP key level for
+  the closed bar, and asks `Biz/MainBiz` which candle pattern touches it.
 - `LineDrawer/` — `VwapSlim` draws the three VWAP lines, `SignalMarkers` the entry markers.
 - `Orders/` — `OrderPlanner` (pure sizing/geometry, unit tested) talks to the broker
-  only through the `ISymbolModel` port; `OrderExecutor` gates on risk/exposure and submits orders.
-- `Risk/` — `RiskGuard` (weekend window + stop-distance and risk-money rules, pure).
+  only through the `ISymbolModel` port; `OrderExecutor` gates on risk/exposure, submits orders,
+  and moves the stop to breakeven once the trade is far enough in profit.
+- `Risk/` — `RiskGuard` (trading-session window + stop-distance and risk-money rules, pure).
 - `OrderLogger/` — `TradeCsvLogger` writes the trades CSV; `TradeCsvMigrator` (pure, unit
   tested) upgrades files written by older builds.
 - `Models/` — data types: `OrderPlanModel`, `SignalModel`, `TradeLevelModel`,

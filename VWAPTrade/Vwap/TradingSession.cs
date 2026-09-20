@@ -5,55 +5,56 @@ namespace cAlgo.Robots;
 // 这个策略的交易时段。时间一律是服务器时间，而服务器时区已设成日本时间
 // （见 VWAPTrade 的 [Robot(TimeZone = TimeZones.TokyoStandardTime)]）。
 //
-//   一个交易日：10:00 开盘，次日 06:00 收盘。周二到周五各开一场，周一不交易。
-//   一个交易周：周二 10:00 开盘，周六 06:00 收盘，正好是上面四场。
+//   一个交易日：10:30 开盘，次日 06:00 收盘。周二到周五各开一场，周一不交易。
+//   一个交易周：周二 10:30 开盘，周六 06:00 收盘，正好是上面四场。
 //
-// 06:00~10:00 的空档、周一、周末都不属于任何一场：VWAP 不累积（取值为 NaN，线上留空），
+// 06:00~10:30 的空档、周一、周末都不属于任何一场：VWAP 不累积（取值为 NaN，线上留空），
 // 也不开新单。已经持有的仓位不受影响，照常由止损/止盈了结。
 //
 // VWAP 什么时候清零、什么时候允许下单，共用这一份定义，免得两边各算一套而走样。
 public static class TradingSession {
-    private const int OpenHour = 10;
-    private const int CloseHour = 6;
+    private static readonly TimeSpan OpenTime = new(10, 30, 0);
+    private static readonly TimeSpan CloseTime = new(6, 0, 0);
 
-    // 周二 10:00 到周六 06:00，共 92 小时。
-    private static readonly TimeSpan WeekLength = TimeSpan.FromHours(92);
+    // 周二 10:30 到周六 06:00，共 91.5 小时。
+    private static readonly TimeSpan WeekLength = TimeSpan.FromHours(91.5);
 
     public static bool IsInSession(DateTime time) {
         return GetDaySessionStart(time).HasValue;
     }
 
-    // 这个时间属于哪一场，返回那一场开盘的 10:00；不属于任何一场就返回 null。
+    // 这个时间属于哪一场，返回那一场开盘的 10:30；不属于任何一场就返回 null。
     public static DateTime? GetDaySessionStart(DateTime time) {
+        TimeSpan timeOfDay = time.TimeOfDay;
         DateTime sessionStart;
 
-        if (time.Hour >= OpenHour)
-            sessionStart = time.Date.AddHours(OpenHour); // 当天 10:00 开的那一场
-        else if (time.Hour < CloseHour)
-            sessionStart = time.Date.AddDays(-1).AddHours(OpenHour); // 昨天 10:00 开的那一场，还没收
+        if (timeOfDay >= OpenTime)
+            sessionStart = time.Date + OpenTime; // 当天 10:30 开的那一场
+        else if (timeOfDay < CloseTime)
+            sessionStart = time.Date.AddDays(-1) + OpenTime; // 昨天 10:30 开的那一场，还没收
         else
-            return null; // 06:00~10:00 的空档
+            return null; // 06:00~10:30 的空档
 
         return IsTradingDay(sessionStart.DayOfWeek) ? sessionStart : (DateTime?)null;
     }
 
-    // 只有周二到周五 10:00 开的场才交易：周一不交易，周六周日休市。
+    // 只有周二到周五 10:30 开的场才交易：周一不交易，周六周日休市。
     // 注意这也把周二凌晨挡在外面 —— 那段时间属于周一开的那一场。
     private static bool IsTradingDay(DayOfWeek dayOfWeek) {
         return dayOfWeek == DayOfWeek.Tuesday || dayOfWeek == DayOfWeek.Wednesday || dayOfWeek == DayOfWeek.Thursday ||
                dayOfWeek == DayOfWeek.Friday;
     }
 
-    // 这个时间属于哪一周，返回那一周周二的 10:00；不在任何一周里就返回 null。
+    // 这个时间属于哪一周，返回那一周周二的 10:30；不在任何一周里就返回 null。
     //
-    // 一周是连成一片的：周二 10:00 到周六 06:00 中间那几个 06:00~10:00 的空档仍然算在这一周里。
+    // 一周是连成一片的：周二 10:30 到周六 06:00 中间那几个 06:00~10:30 的空档仍然算在这一周里。
     // 不能拿「这个时间属于哪一天」去推「属于哪一周」—— 空档里没有「哪一天」，那样每天开盘都会被
     // 当成开新的一周，周 VWAP 就跟日 VWAP 一模一样了。
     public static DateTime? GetWeekSessionStart(DateTime time) {
         int daysSinceTuesday = ((int)time.DayOfWeek - (int)DayOfWeek.Tuesday + 7) % 7;
-        DateTime weekStart = time.Date.AddDays(-daysSinceTuesday).AddHours(OpenHour);
+        DateTime weekStart = time.Date.AddDays(-daysSinceTuesday) + OpenTime;
 
-        // 周二 10:00 之前还属于上一周。
+        // 周二 10:30 之前还属于上一周。
         if (time < weekStart)
             weekStart = weekStart.AddDays(-7);
 
