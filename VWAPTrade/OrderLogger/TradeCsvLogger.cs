@@ -81,17 +81,11 @@ public class TradeCsvLogger {
         return directionModel == TradeDirectionModel.Long ? "多" : "空";
     }
 
-    // 实际打出来的 R = 平仓净盈亏 ÷ 开仓时真正押上的钱。
-    // 分母用 EstimatedRiskMoney（按取整后的下单量算出的、止损被打到时真会亏掉的钱），不是 RiskMoney
-    // （账户权益 × 风险%）—— 下单量取整之后两者会差一点，用前者算出来的 R 才是这一笔真实的倍数。
-    // 分子是净盈亏，已经扣掉手续费和隔夜利息，所以 ResultR 也含成本。
-    private static double GetResultR(double netProfit, OrderPlanModel entryPlan) {
-        double riskMoney = entryPlan?.EstimatedRiskMoney ?? 0.0;
-
-        if (riskMoney <= 0.0)
-            return double.NaN;
-
-        return netProfit / riskMoney;
+    // 实际打出来的 R，按开仓时的初始风险价格距离算（公式见 TradeResultR）。
+    // 入场价用真实成交价，风险距离用下单方案里那一份 —— 也就是「初始风险」。
+    private static double GetResultR(Position position, double closePrice, OrderPlanModel entryPlan) {
+        return TradeResultR.Calculate(position.TradeType == TradeType.Buy ? TradeDirectionModel.Long : TradeDirectionModel.Short,
+            position.EntryPrice, closePrice, entryPlan?.RiskPrice ?? double.NaN);
     }
 
     // entryPlan 是开仓时那一份下单方案（见 OrderExecutor 的 _positionPlans）。把它的 VWAP 读数
@@ -123,7 +117,7 @@ public class TradeCsvLogger {
             SlopeX = entryPlan?.SlopeX ?? double.NaN,
             DailyVwapLookback = entryPlan?.DailyVwapBefore ?? double.NaN,
             GapChangeX = entryPlan?.GapChangeX ?? double.NaN,
-            ResultR = GetResultR(position.NetProfit, entryPlan),
+            ResultR = GetResultR(position, closePrice, entryPlan),
             Symbol = symbolName,
             TimeFrame = timeFrame,
             EntryAccountEquity = resolvedEntryAccountEquity,
@@ -191,11 +185,7 @@ public class TradeCsvLogger {
     }
 
     private static string BuildHeader() {
-        // 新列一律加在末尾：旧文件升级时只要在后面补空列即可，前面的列序不用动（见 TradeCsvMigrator）。
-        return string.Join(",", "编号", "关键位", "信号", "备注", "交易品种", "时间周期", "入场时间", "入场价格", "平仓价格", "止损价格", "止盈价格", "风险价格距离", "下单数量",
-            "平仓原因", "开仓账户权益", "平仓账户权益", "平仓盈亏", "平仓时间", "持仓ID", "成交ID",
-            "多空", "DailyVWAP", "WeeklyVWAP", "ATR14_H1", "GapX", "SlopeX", "最终结果",
-            "DailyVWAP_Lookback", "ResultR", "GapChangeX");
+        return TradeCsvSchema.Header;
     }
 
     private static string FormatOptionalNumber(double value) {

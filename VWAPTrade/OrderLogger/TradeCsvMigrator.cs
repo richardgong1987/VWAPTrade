@@ -13,9 +13,8 @@ namespace cAlgo.Robots;
 //     simply truncated — the leading columns never changed order.
 // Anything else is left untouched: an unrecognised row is safer kept than guessed at.
 public static class TradeCsvMigrator {
-    // 当前 schema 是 30 列：20 列业务字段 + 7 列 VWAP 读数 + 3 列
-    // （DailyVWAP_Lookback / ResultR / GapChangeX）。
-    private const int CurrentColumnCount = 30;
+    // 当前列数跟着 TradeCsvSchema 走，加列时不用记得回来改这里。
+    private static int CurrentColumnCount => TradeCsvSchema.ColumnCount;
 
     // 上一版：业务字段 + 7 列 VWAP 读数。只差末尾 3 列，补空即可。
     private const int VwapReadingsColumnCount = 27;

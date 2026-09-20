@@ -12,7 +12,8 @@ namespace VWAPTrade.Tests.OrderLogger {
         // The schema grew twice: seven VWAP reading columns, then three more at the end.
         private const string VwapReadingsHeader = LegacyHeader + ",多空,DailyVWAP,WeeklyVWAP,ATR14_H1,GapX,SlopeX,最终结果";
 
-        private const string CurrentHeader = VwapReadingsHeader + ",DailyVWAP_Lookback,ResultR,GapChangeX";
+        // The real header the logger writes — not a copy, so the tests cannot drift from it.
+        private static readonly string CurrentHeader = TradeCsvSchema.Header;
 
         private const string PreviousHeader =
             "编号,关键位,信号,回撤开仓模式,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,挂单ID,持仓ID,成交ID";
@@ -114,7 +115,7 @@ namespace VWAPTrade.Tests.OrderLogger {
             Assert.NotNull(upgraded);
             Assert.Equal(CurrentHeader, upgraded[0]);
             Assert.Equal(ExpectedRow, upgraded[1]);
-            Assert.Equal(30, upgraded[1].Split(',').Length);
+            Assert.Equal(TradeCsvSchema.ColumnCount, upgraded[1].Split(',').Length);
         }
 
         [Fact]

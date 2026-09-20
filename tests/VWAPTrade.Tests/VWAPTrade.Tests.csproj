@@ -19,8 +19,10 @@
        cAlgo.API dependency. Only cAlgo-free files may be linked here. -->
   <ItemGroup Label="Behavior under test">
     <Compile Include="..\..\VWAPTrade\Orders\OrderPlanner.cs" Link="Orders\OrderPlanner.cs" />
+    <Compile Include="..\..\VWAPTrade\Orders\TradeResultR.cs" Link="Orders\TradeResultR.cs" />
     <Compile Include="..\..\VWAPTrade\Risk\RiskGuard.cs" Link="Risk\RiskGuard.cs" />
     <Compile Include="..\..\VWAPTrade\OrderLogger\TradeCsvMigrator.cs" Link="OrderLogger\TradeCsvMigrator.cs" />
+    <Compile Include="..\..\VWAPTrade\OrderLogger\TradeCsvSchema.cs" Link="OrderLogger\TradeCsvSchema.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapCalculator.cs" Link="Vwap\VwapCalculator.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapStack.cs" Link="Vwap\VwapStack.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\TradingSession.cs" Link="Vwap\TradingSession.cs" />
