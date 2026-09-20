@@ -81,6 +81,7 @@ public class VWAPTrade : Robot {
 
     private SignalDetector _signalDetector;
     private SignalMarkers _signalMarkers;
+    private VwapSlim _vwapSlim;
     private OrderExecutor _orderExecutor;
     private TradeCsvLogger _csvLogger;
 
@@ -99,6 +100,8 @@ public class VWAPTrade : Robot {
 
         _signalDetector = new SignalDetector(Bars, tradeLevels);
         _signalMarkers = new SignalMarkers(Chart, Symbol.TickSize);
+        _vwapSlim = new VwapSlim(Chart, Bars);
+        _vwapSlim.Draw();
 
         _csvLogger = new TradeCsvLogger(ResetTradeLogOnStart, ResolveReportsDirectory(), FileName);
         Print("****CSV logger path: {0}", _csvLogger.FilePath);
@@ -167,6 +170,7 @@ public class VWAPTrade : Robot {
     }
 
     protected override void OnBar() {
+        _vwapSlim?.Draw();
         HandleClosedBarSignal();
     }
 
