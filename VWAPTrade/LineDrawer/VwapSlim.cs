@@ -65,15 +65,18 @@ public class VwapSlim {
         VwapSampleModel from = _series[barIndex - 1];
         VwapSampleModel to = _series[barIndex];
 
-        // Pine circles do not connect the reset between two sessions.
-        if (!to.IsDailySessionStart)
-            DrawSegment(DailyStyle, barIndex, from.Daily, to.Daily);
-
-        if (!TradingSession.IsNewWeekSession(to.OpenTime, from.OpenTime))
+        // 清零的那一根不连线：Pine 的圆点在两场之间本来就是断开的，连起来会多出一段竖线。
+        //
+        // 画的先后就是叠放的上下：后画的盖住先画的。周线最粗，先画、垫在底下；日线最后画、压在最上面，
+        // 否则在周二那一场（周与日同时开盘、两条线数值完全相同）日线会被周线整条盖掉。
+        if (!to.IsWeeklySessionStart)
             DrawSegment(WeeklyStyle, barIndex, from.Weekly, to.Weekly);
 
         if (!to.IsDailySessionStart)
             DrawSegment(PreviousDailyStyle, barIndex, from.PreviousDaily, to.PreviousDaily);
+
+        if (!to.IsDailySessionStart)
+            DrawSegment(DailyStyle, barIndex, from.Daily, to.Daily);
     }
 
     private void TrimOldestObjects() {

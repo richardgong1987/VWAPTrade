@@ -16,6 +16,9 @@ public static class TradingSession {
     private const int OpenHour = 10;
     private const int CloseHour = 6;
 
+    // 周二 10:00 到周六 06:00，共 92 小时。
+    private static readonly TimeSpan WeekLength = TimeSpan.FromHours(92);
+
     public static bool IsInSession(DateTime time) {
         return GetDaySessionStart(time).HasValue;
     }
@@ -41,15 +44,20 @@ public static class TradingSession {
                dayOfWeek == DayOfWeek.Friday;
     }
 
-    // 这个时间属于哪一周，返回那一周周二的 10:00。
+    // 这个时间属于哪一周，返回那一周周二的 10:00；不在任何一周里就返回 null。
+    //
+    // 一周是连成一片的：周二 10:00 到周六 06:00 中间那几个 06:00~10:00 的空档仍然算在这一周里。
+    // 不能拿「这个时间属于哪一天」去推「属于哪一周」—— 空档里没有「哪一天」，那样每天开盘都会被
+    // 当成开新的一周，周 VWAP 就跟日 VWAP 一模一样了。
     public static DateTime? GetWeekSessionStart(DateTime time) {
-        DateTime? daySessionStart = GetDaySessionStart(time);
+        int daysSinceTuesday = ((int)time.DayOfWeek - (int)DayOfWeek.Tuesday + 7) % 7;
+        DateTime weekStart = time.Date.AddDays(-daysSinceTuesday).AddHours(OpenHour);
 
-        if (!daySessionStart.HasValue)
-            return null;
+        // 周二 10:00 之前还属于上一周。
+        if (time < weekStart)
+            weekStart = weekStart.AddDays(-7);
 
-        int daysSinceTuesday = ((int)daySessionStart.Value.DayOfWeek - (int)DayOfWeek.Tuesday + 7) % 7;
-        return daySessionStart.Value.AddDays(-daysSinceTuesday);
+        return time < weekStart + WeekLength ? weekStart : (DateTime?)null;
     }
 
     public static bool IsNewDaySession(DateTime current, DateTime? previous) {

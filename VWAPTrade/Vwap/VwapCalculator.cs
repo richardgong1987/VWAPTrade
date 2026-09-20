@@ -30,7 +30,8 @@ public class VwapCalculator {
             Daily = _lastDailyVwap,
             Weekly = ToVwap(_weeklyPriceVolume, _weeklyVolume, typicalPrice),
             PreviousDaily = _closedDailyVwap,
-            IsDailySessionStart = isDailySessionStart
+            IsDailySessionStart = isDailySessionStart,
+            IsWeeklySessionStart = isWeeklySessionStart
         };
     }
 
@@ -42,7 +43,8 @@ public class VwapCalculator {
             Daily = double.NaN,
             Weekly = double.NaN,
             PreviousDaily = double.NaN,
-            IsDailySessionStart = false
+            IsDailySessionStart = false,
+            IsWeeklySessionStart = false
         };
     }
 

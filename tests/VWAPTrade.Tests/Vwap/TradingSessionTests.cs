@@ -100,6 +100,33 @@ namespace VWAPTrade.Tests.Vwap {
         }
 
         [Fact]
+        public void the_morning_gap_does_not_open_a_new_week() {
+            // The real previous bar at a 10:00 open is 09:55 — inside the gap. Treating "no day" as
+            // "no week" made every daily open look like a weekly open, which reset the weekly VWAP
+            // every day and left it identical to the daily one.
+            Assert.False(TradingSession.IsNewWeekSession(At(Wednesday, 10, 0), At(Wednesday, 9, 55)));
+            Assert.True(TradingSession.IsNewDaySession(At(Wednesday, 10, 0), At(Wednesday, 9, 55)));
+        }
+
+        [Fact]
+        public void the_gap_between_two_days_still_belongs_to_the_week() {
+            // A week is one continuous span Tuesday 10:00 -> Saturday 06:00; the daily 06:00-10:00
+            // gaps sit inside it.
+            DateTime expected = At(Tuesday, 10, 0);
+
+            Assert.Equal(expected, TradingSession.GetWeekSessionStart(At(Wednesday, 7, 30)));
+            Assert.Equal(expected, TradingSession.GetWeekSessionStart(At(Friday, 8, 0)));
+        }
+
+        [Fact]
+        public void times_before_the_week_opens_belong_to_no_week() {
+            Assert.Null(TradingSession.GetWeekSessionStart(At(Tuesday, 9, 59)));
+            Assert.Null(TradingSession.GetWeekSessionStart(At(Monday, 12, 0)));
+            Assert.Null(TradingSession.GetWeekSessionStart(At(Saturday, 6, 0)));
+            Assert.Null(TradingSession.GetWeekSessionStart(At(Sunday, 12, 0)));
+        }
+
+        [Fact]
         public void every_session_of_the_week_maps_back_to_tuesday_ten_oclock() {
             DateTime expected = At(Tuesday, 10, 0);
 
