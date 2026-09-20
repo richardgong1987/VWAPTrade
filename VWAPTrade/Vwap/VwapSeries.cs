@@ -34,7 +34,9 @@ public class VwapSeries {
         bool isDailySessionStart = barIndex == 0 || VwapCalculator.IsNewDay(_bars.OpenTimes[barIndex], _bars.OpenTimes[barIndex - 1]);
         bool isWeeklySessionStart = barIndex == 0 || VwapCalculator.IsNewWeek(_bars.OpenTimes[barIndex], _bars.OpenTimes[barIndex - 1]);
 
-        return _calculator.Append(_bars.TypicalPrices[barIndex], _bars.TickVolumes[barIndex], isDailySessionStart,
+        VwapSampleModel sample = _calculator.Append(_bars.TypicalPrices[barIndex], _bars.TickVolumes[barIndex], isDailySessionStart,
             isWeeklySessionStart);
+        sample.OpenTime = _bars.OpenTimes[barIndex];
+        return sample;
     }
 }
