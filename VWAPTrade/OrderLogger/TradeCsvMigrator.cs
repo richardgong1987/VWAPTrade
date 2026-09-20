@@ -13,12 +13,15 @@ namespace cAlgo.Robots;
 //     simply truncated — the leading columns never changed order.
 // Anything else is left untouched: an unrecognised row is safer kept than guessed at.
 public static class TradeCsvMigrator {
-    // 当前 schema 是 27 列：20 列的业务字段，加上末尾 7 列 VWAP 读数（多空 / DailyVWAP /
-    // WeeklyVWAP / ATR14_H1 / GapX / SlopeX / 最终结果）。
-    private const int CurrentColumnCount = 27;
+    // 当前 schema 是 30 列：20 列业务字段 + 7 列 VWAP 读数 + 3 列
+    // （DailyVWAP_Lookback / ResultR / GapChangeX）。
+    private const int CurrentColumnCount = 30;
 
-    // 加 VWAP 读数之前的 20 列。「回撤开仓模式」与「挂单ID」两列在更早的时候已经废弃。
-    // 所有可识别的历史行都先收敛到这 20 列，再在末尾补空列凑到当前的 27 列。
+    // 上一版：业务字段 + 7 列 VWAP 读数。只差末尾 3 列，补空即可。
+    private const int VwapReadingsColumnCount = 27;
+
+    // 再往前：只有 20 列业务字段。「回撤开仓模式」与「挂单ID」两列在更早的时候已经废弃。
+    // 所有可识别的历史行都先收敛到这 20 列，再在末尾补空列凑到当前的 30 列。
     private const int PreviousColumnCount = 20;
 
     // 去掉末尾那串波动/趋势状态列之后、尚未去掉上面两列的 22 列布局。所有可识别的历史行都先收敛到它，
@@ -38,6 +41,11 @@ public static class TradeCsvMigrator {
     private const int ColumnCountWithGapX = 29;
     private const int ColumnCountWithShortGapX = 30;
 
+    // 上一版的表头（27 列）。27 列同时也是下面那个带 DMI 状态列的旧布局，两者只能靠表头区分：
+    // 表头对得上就是上一版、补 3 列空；对不上就是旧布局、要先截掉状态列。
+    private const string PreviousHeaderWithVwapReadings =
+        "编号,关键位,信号,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,持仓ID,成交ID,多空,DailyVWAP,WeeklyVWAP,ATR14_H1,GapX,SlopeX,最终结果";
+
     // 加入 DMI 三列之前的表头（24 列），用来把它与同样 24 列的更早布局区分开。
     private const string PreviousHeaderBeforeDmsState =
         "编号,关键位,信号,回撤开仓模式,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,挂单ID,持仓ID,成交ID,ATR_Ratio_H1,PD_Range_ATR";
@@ -52,7 +60,7 @@ public static class TradeCsvMigrator {
         if (hasCurrentHeader && !NeedsRowMigration(lines))
             return null;
 
-        MigrateRows(lines, hasCurrentHeader, lines[0] == PreviousHeaderBeforeDmsState);
+        MigrateRows(lines, hasCurrentHeader, lines[0]);
 
         if (NeedsRowMigration(lines))
             return null;
@@ -73,7 +81,7 @@ public static class TradeCsvMigrator {
         return false;
     }
 
-    private static void MigrateRows(string[] lines, bool isCurrentHeader, bool isHeaderBeforeDmsState) {
+    private static void MigrateRows(string[] lines, bool isCurrentHeader, string header) {
         for (int i = 1; i < lines.Length; i++) {
             if (string.IsNullOrWhiteSpace(lines[i]))
                 continue;
@@ -83,7 +91,7 @@ public static class TradeCsvMigrator {
             if (isCurrentHeader && columns.Length == CurrentColumnCount)
                 continue;
 
-            string[] previousLayout = ToPreviousLayout(columns, isHeaderBeforeDmsState);
+            string[] previousLayout = ToPreviousLayout(columns, header);
 
             // 认不出布局的行原样留着，Upgrade 会因此整份文件都不动。
             if (previousLayout != null)
@@ -91,21 +99,27 @@ public static class TradeCsvMigrator {
         }
     }
 
-    // 把任意可识别的历史布局收敛到 20 列；认不出来就返回 null。
-    private static string[] ToPreviousLayout(string[] columns, bool isHeaderBeforeDmsState) {
+    // 把任意可识别的历史布局收敛成一行「前缀正确」的列，交给 PadToCurrentLayout 补齐末尾。
+    // 认不出来就返回 null。
+    private static string[] ToPreviousLayout(string[] columns, string header) {
+        // 上一版（27 列，已经带 VWAP 读数）原样留着，只在末尾补 3 列。必须排在状态列那一支前面：
+        // 两者都是 27 列，认错了就会把读数当成状态列截掉。
+        if (columns.Length == VwapReadingsColumnCount && header == PreviousHeaderWithVwapReadings)
+            return columns;
+
         if (columns.Length == PreviousColumnCount)
             return columns;
 
         if (columns.Length == BusinessColumnCount)
             return RemoveDroppedColumns(columns);
 
-        if (HasTrailingStateColumns(columns.Length, isHeaderBeforeDmsState))
+        if (HasTrailingStateColumns(columns.Length, header == PreviousHeaderBeforeDmsState))
             return RemoveDroppedColumns(TrimToBusinessColumns(columns));
 
         return null;
     }
 
-    // 旧行没有 VWAP 读数，末尾补空列即可 —— 新列一律加在末尾，前面的列序不用动。
+    // 旧行缺的列一律在末尾，补空即可 —— 新列一直是往末尾加的，前面的列序不用动。
     private static string[] PadToCurrentLayout(string[] previousLayout) {
         string[] padded = new string[CurrentColumnCount];
         Array.Copy(previousLayout, padded, previousLayout.Length);

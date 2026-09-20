@@ -45,11 +45,22 @@ public static class VwapStack {
     }
 
     public static double GetGapX(VwapStrongReadingModel reading, SignalSideModel side) {
-        double gap = side == SignalSideModel.Buy
-            ? reading.DailyVwap - reading.WeeklyVwap
-            : reading.WeeklyVwap - reading.DailyVwap;
+        return Normalize(GetDirectionalGap(reading.DailyVwap, reading.WeeklyVwap, side), reading.Atr14H1);
+    }
 
-        return Normalize(gap, reading.Atr14H1);
+    // 带方向的开口：多头取 日−周，空头取 周−日，所以顺着方向张开时是正数。
+    private static double GetDirectionalGap(double dailyVwap, double weeklyVwap, SignalSideModel side) {
+        return side == SignalSideModel.Buy ? dailyVwap - weeklyVwap : weeklyVwap - dailyVwap;
+    }
+
+    // 开口这 N 根里的变化：正数 = 两条 VWAP 在往外扩，负数 = 在收窄。
+    // 用的是带方向的开口（与 GetGapX 同一口径），所以逆着方向收窄时是负数。只写进 CSV 供调参，
+    // 不参与放行判断。
+    public static double GetGapChangeX(VwapStrongReadingModel reading, SignalSideModel side) {
+        double gapNow = GetDirectionalGap(reading.DailyVwap, reading.WeeklyVwap, side);
+        double gapBefore = GetDirectionalGap(reading.DailyVwapBefore, reading.WeeklyVwapBefore, side);
+
+        return Normalize(gapNow - gapBefore, reading.Atr14H1);
     }
 
     public static double GetSlopeX(VwapStrongReadingModel reading, SignalSideModel side) {

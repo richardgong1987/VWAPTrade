@@ -27,6 +27,8 @@ public class SignalModel {
 
     public double SlopeX { get; set; }
 
+    public double GapChangeX { get; set; }
+
     public int BarIndex { get; set; }
 
     public DateTime BarTime { get; set; }

@@ -59,4 +59,13 @@ public class TradeCsvRecordModel {
 
     // 这一笔最后是赚是赔。只有平仓行有值。
     public string FinalResult { get; set; }
+
+    // 算斜率时回看那一根上的日 VWAP。
+    public double DailyVwapLookback { get; set; } = double.NaN;
+
+    // 这一笔实际打出来的 R：平仓净盈亏 ÷ 开仓时真正押上的钱。只有平仓行有值。
+    public double ResultR { get; set; } = double.NaN;
+
+    // 开口这 N 根里的变化：正数 = 扩口扩大，负数 = 扩口缩小。
+    public double GapChangeX { get; set; } = double.NaN;
 }

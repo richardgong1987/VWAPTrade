@@ -120,10 +120,60 @@ namespace VWAPTrade.Tests.Vwap {
             Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(reading, gapMin: 0.0, slopeMin: 0.0));
         }
 
-        private static VwapStrongReadingModel Long(double daily, double weekly, double dailyBefore, double atr = Atr) =>
-            new() { Close = daily + 1.0, DailyVwap = daily, WeeklyVwap = weekly, DailyVwapBefore = dailyBefore, Atr14H1 = atr };
+        // GapChangeX reports only — it never gates a trade. Positive means the two VWAPs are
+        // spreading apart in the trade's favour, negative means the gap is closing.
+        [Fact]
+        public void a_widening_gap_reports_a_positive_change() {
+            // gap now = 105 - 100 = 5 ; gap N bars ago = 101 - 99 = 2 ; (5 - 2) / 2 = 1.5
+            VwapStrongReadingModel reading = Long(daily: 105.0, weekly: 100.0, dailyBefore: 101.0, weeklyBefore: 99.0);
 
-        private static VwapStrongReadingModel Short(double daily, double weekly, double dailyBefore, double atr = Atr) =>
-            new() { Close = daily - 1.0, DailyVwap = daily, WeeklyVwap = weekly, DailyVwapBefore = dailyBefore, Atr14H1 = atr };
+            Assert.Equal(1.5, VwapStack.GetGapChangeX(reading, SignalSideModel.Buy), precision: 6);
+        }
+
+        [Fact]
+        public void a_narrowing_gap_reports_a_negative_change() {
+            // gap now = 105 - 100 = 5 ; gap N bars ago = 104 - 96 = 8 ; (5 - 8) / 2 = -1.5
+            VwapStrongReadingModel reading = Long(daily: 105.0, weekly: 100.0, dailyBefore: 104.0, weeklyBefore: 96.0);
+
+            Assert.Equal(-1.5, VwapStack.GetGapChangeX(reading, SignalSideModel.Buy), precision: 6);
+        }
+
+        [Fact]
+        public void a_short_measures_the_gap_change_the_other_way_round() {
+            // gap now = 100 - 95 = 5 ; gap N bars ago = 99 - 97 = 2 ; (5 - 2) / 2 = 1.5
+            VwapStrongReadingModel reading = Short(daily: 95.0, weekly: 100.0, dailyBefore: 97.0, weeklyBefore: 99.0);
+
+            Assert.Equal(1.5, VwapStack.GetGapChangeX(reading, SignalSideModel.Sell), precision: 6);
+        }
+
+        [Fact]
+        public void the_gap_change_never_blocks_a_trade_on_its_own() {
+            // Sharply narrowing gap, but both filters are satisfied, so the trade still passes.
+            VwapStrongReadingModel reading = Long(daily: 105.0, weekly: 100.0, dailyBefore: 101.0, weeklyBefore: 90.0);
+
+            Assert.True(VwapStack.GetGapChangeX(reading, SignalSideModel.Buy) < 0.0);
+            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(reading, gapMin: 2.0, slopeMin: 1.5));
+        }
+
+        [Fact]
+        public void a_missing_lookback_leaves_the_gap_change_unknown() {
+            VwapStrongReadingModel reading = Long(daily: 105.0, weekly: 100.0, dailyBefore: double.NaN);
+
+            Assert.True(double.IsNaN(VwapStack.GetGapChangeX(reading, SignalSideModel.Buy)));
+        }
+
+        private static VwapStrongReadingModel Long(double daily, double weekly, double dailyBefore, double weeklyBefore = double.NaN,
+            double atr = Atr) =>
+            new() {
+                Close = daily + 1.0, DailyVwap = daily, WeeklyVwap = weekly, DailyVwapBefore = dailyBefore,
+                WeeklyVwapBefore = weeklyBefore, Atr14H1 = atr
+            };
+
+        private static VwapStrongReadingModel Short(double daily, double weekly, double dailyBefore, double weeklyBefore = double.NaN,
+            double atr = Atr) =>
+            new() {
+                Close = daily - 1.0, DailyVwap = daily, WeeklyVwap = weekly, DailyVwapBefore = dailyBefore,
+                WeeklyVwapBefore = weeklyBefore, Atr14H1 = atr
+            };
     }
 }

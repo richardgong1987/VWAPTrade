@@ -155,6 +155,7 @@ public class OrderExecutor {
     private static void CopyVwapReading(OrderPlanModel planModel, SignalModel signalModel) {
         planModel.GapX = signalModel.GapX;
         planModel.SlopeX = signalModel.SlopeX;
+        planModel.GapChangeX = signalModel.GapChangeX;
 
         if (signalModel.Strong == null)
             return;
@@ -162,6 +163,7 @@ public class OrderExecutor {
         planModel.DailyVwap = signalModel.Strong.DailyVwap;
         planModel.WeeklyVwap = signalModel.Strong.WeeklyVwap;
         planModel.Atr14H1 = signalModel.Strong.Atr14H1;
+        planModel.DailyVwapBefore = signalModel.Strong.DailyVwapBefore;
     }
 
     // Gates on the level's own label, so the other levels stay free to open their own position.

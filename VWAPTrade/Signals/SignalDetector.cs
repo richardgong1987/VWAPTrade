@@ -53,31 +53,35 @@ public class SignalDetector {
         signal.Strong = strong;
         signal.GapX = VwapStack.GetGapX(strong, side);
         signal.SlopeX = VwapStack.GetSlopeX(strong, side);
+        signal.GapChangeX = VwapStack.GetGapChangeX(strong, side);
         return new List<SignalModel> { signal };
     }
 
     private VwapStrongReadingModel ReadStrong(int closedBarIndex, CandleModel current, VwapSampleModel vwap) {
+        VwapSampleModel lookback = ReadLookbackSample(closedBarIndex);
+
         return new VwapStrongReadingModel {
             Close = current.Close,
             DailyVwap = vwap.Daily,
             WeeklyVwap = vwap.Weekly,
-            DailyVwapBefore = ReadDailyVwapBefore(closedBarIndex),
+            DailyVwapBefore = lookback?.Daily ?? double.NaN,
+            WeeklyVwapBefore = lookback?.Weekly ?? double.NaN,
             Atr14H1 = _atr14H1.TryGetValue(_chartBars.OpenTimes[closedBarIndex], out double atr) ? atr : double.NaN
         };
     }
 
     // 回看那一根必须和当前在同一场：日 VWAP 每场开盘都清零，跨场相减得到的是清零那一下的跳变，
-    // 不是斜率。取不到就返回 NaN，斜率闸门开着时会把这根 K 线拦下（见 VwapStack）。
-    private double ReadDailyVwapBefore(int closedBarIndex) {
+    // 不是斜率。取不到就返回 null，斜率闸门开着时会把这根 K 线拦下（见 VwapStack）。
+    private VwapSampleModel ReadLookbackSample(int closedBarIndex) {
         int lookbackIndex = closedBarIndex - _settings.VwapSlopeLookbackBars;
 
         if (lookbackIndex < 0)
-            return double.NaN;
+            return null;
 
         DateTime? currentSession = TradingSession.GetDaySessionStart(_vwapSeries[closedBarIndex].OpenTime);
         DateTime? lookbackSession = TradingSession.GetDaySessionStart(_vwapSeries[lookbackIndex].OpenTime);
 
-        return currentSession == lookbackSession ? _vwapSeries[lookbackIndex].Daily : double.NaN;
+        return currentSession == lookbackSession ? _vwapSeries[lookbackIndex] : null;
     }
 
     private CandleModel ReadCandle(int index) {
