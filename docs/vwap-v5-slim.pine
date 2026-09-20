@@ -1,0 +1,25 @@
+//@version=5
+indicator("VWAP V5 - Daily, Weekly & Previous Day", overlay = true)
+
+// Keep the original script's HLC3 x volume accumulation.
+getVWAP(newSession) =>
+    p = hlc3 * volume
+    p := newSession ? hlc3 * volume : nz(p[1]) + hlc3 * volume
+    vol = 0.0
+    vol := newSession ? volume : nz(vol[1]) + volume
+    p / vol
+
+newSessionD = ta.change(time("D")) != 0
+newSessionW = ta.change(time("W")) != 0
+
+vD = getVWAP(newSessionD)
+vW = getVWAP(newSessionW)
+pvD = ta.valuewhen(newSessionD, vD[1], 0)
+
+// Hide on daily, weekly and monthly chart timeframes.
+visible = not timeframe.isdwm
+
+// Keep Data Window values; hide price-scale labels and status-line values.
+plot(visible ? vD : na, title = "VWAP - Daily", color = #FFEB3B, style = plot.style_circles, linewidth = 1, display = display.all - display.price_scale - display.status_line)
+plot(visible ? vW : na, title = "VWAP - Weekly", color = #9C27B0, style = plot.style_circles, linewidth = 2, display = display.all - display.price_scale - display.status_line)
+plot(visible ? pvD : na, title = "Previous VWAP - Daily", color = #FFEB3B, style = plot.style_cross, linewidth = 1, display = display.all - display.price_scale - display.status_line)
