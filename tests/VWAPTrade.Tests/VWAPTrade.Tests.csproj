@@ -21,7 +21,7 @@
     <Compile Include="..\..\VWAPTrade\Orders\OrderPlanner.cs" Link="Orders\OrderPlanner.cs" />
     <Compile Include="..\..\VWAPTrade\Risk\RiskGuard.cs" Link="Risk\RiskGuard.cs" />
     <Compile Include="..\..\VWAPTrade\OrderLogger\TradeCsvMigrator.cs" Link="OrderLogger\TradeCsvMigrator.cs" />
-    <Compile Include="..\..\VWAPTrade\LineDrawer\VwapCalculator.cs" Link="LineDrawer\VwapCalculator.cs" />
+    <Compile Include="..\..\VWAPTrade\Vwap\VwapCalculator.cs" Link="Vwap\VwapCalculator.cs" />
   </ItemGroup>
 
   <!-- Data models the planner depends on. CAlgoSymbolModel is intentionally excluded: it is the

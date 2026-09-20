@@ -1,8 +1,10 @@
+using System;
+
 namespace cAlgo.Robots;
 
 // docs/vwap-v5-slim.pine 的累积口径：VWAP = Σ(hlc3 × volume) / Σ(volume)，每逢新的交易日/交易周
-// 清零重算。调用方按 K 线顺序逐根 Append，自己负责判断交易日/交易周边界（那要读 K 线时间，属于
-// cAlgo 那一侧）。这里只有算术，没有 cAlgo 依赖，所以是单元测试覆盖的部分。
+// 清零重算。调用方按 K 线顺序逐根 Append，交易日/交易周的边界用下面的静态方法判断。
+// 这里只有算术和时间比较，没有 cAlgo 依赖，所以是单元测试覆盖的部分。
 public class VwapCalculator {
     private double _dailyPriceVolume;
     private double _dailyVolume;
@@ -30,6 +32,22 @@ public class VwapCalculator {
             PreviousDaily = _closedDailyVwap,
             IsDailySessionStart = isDailySessionStart
         };
+    }
+
+    // 交易日按服务器时间的自然日切分，不是 TradingView 的交易所时段，因此日界附近可能与 Pine 原
+    // 脚本差一两根 K 线。
+    public static bool IsNewDay(DateTime current, DateTime previous) {
+        return current.Date != previous.Date;
+    }
+
+    // 交易周以周一为界：周一开盘那根 K 线开新的一周，周末的跳空不算。
+    public static bool IsNewWeek(DateTime current, DateTime previous) {
+        return GetWeekStart(current) != GetWeekStart(previous);
+    }
+
+    public static DateTime GetWeekStart(DateTime time) {
+        int daysSinceMonday = ((int)time.DayOfWeek + 6) % 7;
+        return time.Date.AddDays(-daysSinceMonday);
     }
 
     private static void Accumulate(bool isSessionStart, ref double priceVolume, ref double volume, double typicalPrice,

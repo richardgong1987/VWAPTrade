@@ -5,28 +5,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A **cTrader cBot** (automated trading robot) written in C# against the cAlgo API, targeting
-`net6.0`. The strategy is **PDH/PDL Break and Reverse**: it detects false breakouts of the
-Previous Day High/Low, sizes an order against a fixed per-trade risk budget, and places it.
-The strategy is implemented; `VWAPTrade.cs` is the Robot lifecycle shell that wires the
-pieces together (the composition root).
+`net6.0`. The strategy is **VWAP break and reverse**: the daily and weekly VWAP act as key
+levels, and a closed bar that touches one of them and closes back on the other side with a
+matching candle pattern (pinbar / engulfing / fractal / harami) becomes an entry, sized against
+a per-trade risk budget. `VWAPTrade.cs` is the Robot lifecycle shell that wires the pieces
+together (the composition root); the only user-facing settings are 风险% and 止盈目标.
 
 ## Module map
 
 Behavior classes live beside the feature they serve; all data types live in `Models/`
 (suffixed `Model`):
 
+- `Vwap/` — `VwapCalculator` (pure accumulation + session boundaries, unit tested) and
+  `VwapSeries`, which reads `Bars` and caches one `VwapSampleModel` per closed bar. It is the
+  single source of VWAP values for both drawing and signals.
+- `Signals/` — `SignalDetector` builds the two VWAP key levels for the closed bar and asks
+  `Biz/MainBiz` which candle patterns hit them.
+- `LineDrawer/` — `VwapSlim` draws the three VWAP lines, `SignalMarkers` the entry markers.
 - `Orders/` — `OrderPlanner` (pure sizing/geometry, unit tested) talks to the broker
-  only through the `ISymbolModel` port; `OrderExecutor` gates on risk/exposure,
-  submits orders, and cancels stale pending orders.
-- `Risk/` — `RiskGuard` (time/news/weekend windows + risk-money, pure, unit tested).
-- `Models/` — data types: `OrderPlanModel`, `TradeDirectionModel`,
-  `NewsBlackoutWindowModel`, the `ISymbolModel` port, and its `CAlgoSymbolModel`
-  adapter (the one Models/ file that references `cAlgo.API`).
+  only through the `ISymbolModel` port; `OrderExecutor` gates on risk/exposure and submits orders.
+- `Risk/` — `RiskGuard` (weekend window + stop-distance and risk-money rules, pure).
+- `OrderLogger/` — `TradeCsvLogger` writes the trades CSV; `TradeCsvMigrator` (pure, unit
+  tested) upgrades files written by older builds.
+- `Models/` — data types: `OrderPlanModel`, `SignalModel`, `TradeLevelModel`,
+  `TradeSettingsModel`, `VwapSampleModel`, `TradeDirectionModel`, the `ISymbolModel` port, and
+  its `CAlgoSymbolModel` adapter (the one Models/ file that references `cAlgo.API`).
 
 Rule of thumb: classes with no `using cAlgo.API` are pure and testable; keep them that way.
 `CAlgoSymbolModel` is the sole broker adapter — it is the only Models/ file that touches
-cAlgo, and it is never linked into the test project. The design rationale lives in
-`docs/design/refactor-structure.md`.
+cAlgo, and it is never linked into the test project.
 
 ## Build & run
 

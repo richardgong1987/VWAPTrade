@@ -76,24 +76,6 @@ public class OrderExecutor {
         return ExecutePlan(planModel);
     }
 
-    // Cancels this level's orders that are still waiting to fill. Filled orders are already
-    // positions, which live in Positions rather than PendingOrders, so they are left untouched.
-    public void CancelPendingOrdersForLevel(string levelName) {
-        string label = _strategyLabelPrefix + levelName;
-        List<PendingOrder> levelOrders = _robot.PendingOrders
-            .Where(order => order.SymbolName == _symbolName && order.Label == label)
-            .ToList();
-
-        foreach (PendingOrder order in levelOrders) {
-            TradeResult result = _robot.CancelPendingOrder(order);
-
-            if (result.IsSuccessful)
-                _robot.Print("*****Pending order cancelled | Level: {0}, OrderId: {1}", levelName, order.Id);
-            else
-                _robot.Print("*****Pending order cancel failed | Level: {0}, OrderId: {1}, Error: {2}", levelName, order.Id, result.Error);
-        }
-    }
-
     // Gates on the level's own label, so the other levels stay free to open their own position.
     // Checks live broker state rather than in-memory maps, so a restart does not stack a second order.
     private bool HasPositionForLevel(string label) {
