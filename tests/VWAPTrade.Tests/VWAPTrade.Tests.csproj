@@ -20,6 +20,7 @@
   <ItemGroup Label="Behavior under test">
     <Compile Include="..\..\VWAPTrade\Orders\OrderPlanner.cs" Link="Orders\OrderPlanner.cs" />
     <Compile Include="..\..\VWAPTrade\Risk\RiskGuard.cs" Link="Risk\RiskGuard.cs" />
+    <Compile Include="..\..\VWAPTrade\OrderLogger\TradeCsvMigrator.cs" Link="OrderLogger\TradeCsvMigrator.cs" />
   </ItemGroup>
 
   <!-- Data models the planner depends on. CAlgoSymbolModel is intentionally excluded: it is the
