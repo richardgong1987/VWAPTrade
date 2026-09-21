@@ -2,7 +2,7 @@ using cAlgo.Robots;
 using Xunit;
 
 namespace VWAPTrade.Tests.Vwap {
-    // The gate itself (docs/VWAP_Strong_V1.pdf §5.3, §6.4, §8): the stack, then GapMin against
+    // The gate itself (docs/VWAP_Strong_V1.1.docx §6, steps 2/4/5): the stack, then GapMin against
     // GapX_Selected, then SlopeRateMin against SlopeRateX_Selected. A threshold of 0 switches that
     // filter off completely — even a missing ATR must not block the trade then.
     public class VwapStackFilterTests {

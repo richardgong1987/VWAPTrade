@@ -1,6 +1,6 @@
 namespace cAlgo.Robots;
 
-// VWAP Strong V1 的距离与斜率公式（docs/VWAP_Strong_V1.pdf 第 5、6 节）。
+// VWAP Strong 的距离、斜率与扩口变化公式（docs/VWAP_Strong_V1.1.docx 第 2 节沿用定义、第 3 节扩口变化）。
 //
 // 先把方向统一成 direction：多头 +1、空头 −1，这样多空共用同一个正数阈值，
 // 顺着交易方向是正数、逆着是负数 —— 绝不能取绝对值，那会把逆向斜率伪装成合格。

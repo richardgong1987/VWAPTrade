@@ -30,7 +30,8 @@ public class VWAPTrade : Robot {
     public double VwapGapMin { get; set; }
 
     // 旧参数叫 VwapSlopeMin，比的是原始斜率；这个比的是 30 分钟标准化速度，不是同一个量纲，
-    // 所以换了名字，避免旧值被静默当成新阈值（迁移说明见 docs/VWAP_Strong_V1_migration.md）。
+    // 所以换了名字，避免旧值被静默当成新阈值。N 与 ATR 口径不变时，旧阈值 × 6/N 才是对应的新阈值；
+    // 不知道当时的 N 就不能换算，只能重新标定。
     [Parameter("VWAP斜率速度最小值 (30分钟标准化, ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0,
         Step = 0.01, Group = "VWAP过滤")]
     public double VwapSlopeRateMin { get; set; }

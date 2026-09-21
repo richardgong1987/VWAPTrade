@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A **cTrader cBot** (automated trading robot) written in C# against the cAlgo API, targeting
-`net6.0`. The strategy is **VWAP Strong V1** (`docs/VWAP_Strong_V1.pdf`), a VWAP break-and-reverse
+`net6.0`. The strategy is **VWAP Strong** (`docs/VWAP_Strong_V1.1.docx`), a VWAP break-and-reverse
 on **M5 only**. The daily VWAP is the key level (the yellow line): a closed bar whose candle
 pattern (pinbar / engulfing / fractal / harami) touches it becomes an entry, sized against a
 per-trade risk budget. Three gates, in order (`Vwap/VwapStack.cs`):

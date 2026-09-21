@@ -3,7 +3,7 @@ using System;
 namespace cAlgo.Robots;
 
 // M5 与 H1 两套 ATR14。两套始终都算、都写进 CSV，「ATR归一周期」参数只决定过滤器拿哪一套
-// 当分母（docs/VWAP_Strong_V1.pdf 第 4、7 节）—— 留着另一套是为了日后离线 A/B，别删。
+// 当分母（docs/VWAP_Strong_V1.1.docx 第 2 节 SelectedATR、第 3.4 节）—— 留着另一套是为了日后离线 A/B，别删。
 //
 // 取不到就返回 NaN：所选那一套缺失时，开着的过滤器会拦下这根 K 线；未选中那一套缺失只是
 // CSV 里对应研究字段留空，不影响交易。

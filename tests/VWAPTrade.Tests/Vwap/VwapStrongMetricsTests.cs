@@ -2,7 +2,7 @@ using cAlgo.Robots;
 using Xunit;
 
 namespace VWAPTrade.Tests.Vwap {
-    // The VWAP Strong V1 formulas (docs/VWAP_Strong_V1.pdf §5, §6):
+    // The VWAP Strong formulas (docs/VWAP_Strong_V1.1.docx §2, the definitions carried forward):
     //   GapX         = direction × (D − W) / ATR
     //   SlopeRawX    = direction × (D − D[N]) / ATR
     //   SlopeRateX30 = SlopeRawX × 6/N
