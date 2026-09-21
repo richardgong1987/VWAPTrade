@@ -4,8 +4,8 @@ using Xunit;
 namespace VWAPTrade.Tests.Vwap {
     // On top of the stack (close > daily > weekly for longs), a Strong setup must also clear two
     // ATR-normalised filters:
-    //   GapX   = |daily - weekly|      / ATR14_H1  >= GapMin
-    //   SlopeX = |daily - daily[N]|    / ATR14_H1  >= SlopeMin
+    //   GapX   = |daily - weekly|      / ATR14  >= GapMin
+    //   SlopeX = |daily - daily[N]|    / ATR14  >= SlopeMin
     // Both numerators are signed by direction, so a VWAP moving against the trade is negative and
     // can never pass. A threshold of 0 switches that filter off.
     public class VwapStrongFilterTests {
@@ -114,7 +114,7 @@ namespace VWAPTrade.Tests.Vwap {
         public void the_filters_never_rescue_a_bar_that_fails_the_stack() {
             // Wide gap and steep slope, but the close sits below the daily VWAP.
             VwapStrongReadingModel reading = new() {
-                Close = 99.0, DailyVwap = 105.0, WeeklyVwap = 100.0, DailyVwapBefore = 101.0, Atr14H1 = Atr
+                Close = 99.0, DailyVwap = 105.0, WeeklyVwap = 100.0, DailyVwapBefore = 101.0, Atr14 = Atr
             };
 
             Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(reading, gapMin: 0.0, slopeMin: 0.0));
@@ -166,14 +166,14 @@ namespace VWAPTrade.Tests.Vwap {
             double atr = Atr) =>
             new() {
                 Close = daily + 1.0, DailyVwap = daily, WeeklyVwap = weekly, DailyVwapBefore = dailyBefore,
-                WeeklyVwapBefore = weeklyBefore, Atr14H1 = atr
+                WeeklyVwapBefore = weeklyBefore, Atr14 = atr
             };
 
         private static VwapStrongReadingModel Short(double daily, double weekly, double dailyBefore, double weeklyBefore = double.NaN,
             double atr = Atr) =>
             new() {
                 Close = daily - 1.0, DailyVwap = daily, WeeklyVwap = weekly, DailyVwapBefore = dailyBefore,
-                WeeklyVwapBefore = weeklyBefore, Atr14H1 = atr
+                WeeklyVwapBefore = weeklyBefore, Atr14 = atr
             };
     }
 }

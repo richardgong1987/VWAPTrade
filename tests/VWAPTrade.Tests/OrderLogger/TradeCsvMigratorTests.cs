@@ -9,11 +9,14 @@ namespace VWAPTrade.Tests.OrderLogger {
         private const string LegacyHeader =
             "编号,关键位,信号,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,持仓ID,成交ID";
 
-        // Headers of shipped builds. These are frozen history — each one is a prefix of the
-        // current header, because columns are only ever appended.
+        // Headers of shipped builds — frozen history. The ones up to the ATR rename are prefixes
+        // of the current header; after the rename they are recognised from an explicit list.
         private const string VwapReadingsHeader = LegacyHeader + ",多空,DailyVWAP,WeeklyVWAP,ATR14_H1,GapX,SlopeX,最终结果";
 
         private const string ResultRHeader = VwapReadingsHeader + ",DailyVWAP_Lookback,ResultR,GapChangeX";
+
+        // The build just before ATR14_H1 was renamed to ATR14.
+        private const string BeforeAtrRenameHeader = ResultRHeader + ",WeeklyVWAP_Lookback";
 
         // The real header the logger writes — not a copy, so the tests cannot drift from it.
         private static readonly string CurrentHeader = TradeCsvSchema.Header;
@@ -126,6 +129,21 @@ namespace VWAPTrade.Tests.OrderLogger {
             string[] lines = { CurrentHeader, VwapReadingsRow + ",2404.1,-1.0,0.35,2398.7" };
 
             Assert.Null(TradeCsvMigrator.Upgrade(lines, CurrentHeader));
+        }
+
+        [Fact]
+        public void upgrades_a_file_whose_only_difference_is_the_renamed_atr_column() {
+            // Renaming ATR14_H1 to ATR14 broke the prefix rule, so this header is recognised from
+            // an explicit list. The values never moved, so the row only needs padding.
+            string row = VwapReadingsRow + ",2404.1,-1.0,0.35,2398.7";
+            string[] lines = { BeforeAtrRenameHeader, row };
+
+            string[] upgraded = TradeCsvMigrator.Upgrade(lines, CurrentHeader);
+
+            Assert.NotNull(upgraded);
+            Assert.Equal(CurrentHeader, upgraded[0]);
+            Assert.StartsWith(row, upgraded[1]);
+            Assert.Equal(TradeCsvSchema.ColumnCount, upgraded[1].Split(',').Length);
         }
 
         [Fact]
