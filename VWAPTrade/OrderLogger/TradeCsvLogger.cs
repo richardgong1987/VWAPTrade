@@ -63,19 +63,47 @@ public class TradeCsvLogger {
             VolumeInUnits = position.VolumeInUnits,
             PositionId = position.Id.ToString(),
             DealId = GetOpenDealId(position),
-            Side = GetSideText(planModel.DirectionModel),
-            DailyVwap = planModel.DailyVwap,
-            WeeklyVwap = planModel.WeeklyVwap,
-            Atr14 = planModel.Atr14,
-            GapX = planModel.GapX,
-            SlopeX = planModel.SlopeX,
-            DailyVwapLookback = planModel.DailyVwapBefore,
-            WeeklyVwapLookback = planModel.WeeklyVwapBefore,
-            GapChangeX = planModel.GapChangeX
+            Side = GetSideText(planModel.DirectionModel)
         };
 
+        FillVwapColumns(record, planModel);
         Append(record);
         return record.Id;
+    }
+
+    // 开仓行与平仓行写同一份快照，所以两处共用这一段填充。
+    private static void FillVwapColumns(TradeCsvRecordModel record, OrderPlanModel planModel) {
+        VwapStrongReadingModel reading = planModel?.VwapReading;
+        VwapStrongMetricsModel metrics = planModel?.VwapMetrics;
+
+        if (reading != null) {
+            record.DailyVwap = reading.DailyVwap;
+            record.WeeklyVwap = reading.WeeklyVwap;
+            record.DailyVwapLookback = reading.DailyVwapBefore;
+            record.WeeklyVwapLookback = reading.WeeklyVwapBefore;
+            record.Atr14M5 = reading.Atr14M5;
+            record.Atr14H1 = reading.Atr14H1;
+            record.Atr14 = reading.SelectedAtr;
+            record.LookbackN = reading.LookbackN;
+            record.SelectedAtrPeriod = reading.SelectedAtrPeriod.ToString();
+        }
+
+        if (metrics == null)
+            return;
+
+        record.GapXM5 = metrics.GapXM5;
+        record.GapXH1 = metrics.GapXH1;
+        record.SlopeRawXM5 = metrics.SlopeRawXM5;
+        record.SlopeRawXH1 = metrics.SlopeRawXH1;
+        record.SlopeRateX30M5 = metrics.SlopeRateX30M5;
+        record.SlopeRateX30H1 = metrics.SlopeRateX30H1;
+        record.GapXSelected = metrics.GapXSelected;
+        record.SlopeRateXSelected = metrics.SlopeRateXSelected;
+        record.GapChangeX = metrics.GapChangeX;
+
+        // 旧列保持原义：GapX = 所选那一套的距离，SlopeX = 原始斜率（未做 30 分钟归一）。
+        record.GapX = metrics.GapXSelected;
+        record.SlopeX = metrics.SlopeRawXSelected;
     }
 
     private static string GetSideText(TradeDirectionModel directionModel) {
@@ -111,14 +139,6 @@ public class TradeCsvLogger {
             Comment = finalResult,
             FinalResult = finalResult,
             Side = position.TradeType == TradeType.Buy ? "多" : "空",
-            DailyVwap = entryPlan?.DailyVwap ?? double.NaN,
-            WeeklyVwap = entryPlan?.WeeklyVwap ?? double.NaN,
-            Atr14 = entryPlan?.Atr14 ?? double.NaN,
-            GapX = entryPlan?.GapX ?? double.NaN,
-            SlopeX = entryPlan?.SlopeX ?? double.NaN,
-            DailyVwapLookback = entryPlan?.DailyVwapBefore ?? double.NaN,
-            WeeklyVwapLookback = entryPlan?.WeeklyVwapBefore ?? double.NaN,
-            GapChangeX = entryPlan?.GapChangeX ?? double.NaN,
             ResultR = GetResultR(position, closePrice, entryPlan),
             Symbol = symbolName,
             TimeFrame = timeFrame,
@@ -138,6 +158,7 @@ public class TradeCsvLogger {
             DealId = GetCloseDealId(position)
         };
 
+        FillVwapColumns(record, entryPlan);
         Append(record);
         return record.Id;
     }
@@ -161,7 +182,13 @@ public class TradeCsvLogger {
             Escape(FormatReading(recordModel.Atr14)), Escape(FormatReading(recordModel.GapX)),
             Escape(FormatReading(recordModel.SlopeX)), Escape(recordModel.FinalResult),
             Escape(FormatReading(recordModel.DailyVwapLookback)), Escape(FormatReading(recordModel.ResultR)),
-            Escape(FormatReading(recordModel.GapChangeX)), Escape(FormatReading(recordModel.WeeklyVwapLookback)));
+            Escape(FormatReading(recordModel.GapChangeX)), Escape(FormatReading(recordModel.WeeklyVwapLookback)),
+            Escape(FormatLookbackN(recordModel.LookbackN)), Escape(FormatReading(recordModel.Atr14M5)),
+            Escape(FormatReading(recordModel.Atr14H1)), Escape(FormatReading(recordModel.GapXM5)),
+            Escape(FormatReading(recordModel.GapXH1)), Escape(FormatReading(recordModel.SlopeRawXM5)),
+            Escape(FormatReading(recordModel.SlopeRawXH1)), Escape(FormatReading(recordModel.SlopeRateX30M5)),
+            Escape(FormatReading(recordModel.SlopeRateX30H1)), Escape(recordModel.SelectedAtrPeriod),
+            Escape(FormatReading(recordModel.GapXSelected)), Escape(FormatReading(recordModel.SlopeRateXSelected)));
         System.IO.File.AppendAllText(_filePath, line + Environment.NewLine, CsvEncoding);
     }
 
@@ -195,6 +222,11 @@ public class TradeCsvLogger {
             return "";
 
         return value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    // 没有快照的行（例如更早版本留下的持仓）留空，不要写成 0 —— 0 是一个合法的 N。
+    private static string FormatLookbackN(int lookbackN) {
+        return lookbackN >= 1 ? lookbackN.ToString(CultureInfo.InvariantCulture) : "";
     }
 
     // VWAP 读数可以是负数（逆着方向走的 SlopeX），所以不能套用 FormatOptionalNumber 的「≤0 留空」。

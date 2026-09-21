@@ -157,7 +157,8 @@ namespace VWAPTrade.Tests.OrderLogger {
 
             Assert.NotNull(upgraded);
             Assert.Equal(CurrentHeader, upgraded[0]);
-            Assert.Equal(row + ",", upgraded[1]);
+            Assert.StartsWith(row + ",", upgraded[1]);
+            Assert.Equal(TradeCsvSchema.ColumnCount, upgraded[1].Split(',').Length);
         }
 
         [Fact]

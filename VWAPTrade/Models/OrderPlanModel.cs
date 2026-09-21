@@ -25,13 +25,9 @@ public class OrderPlanModel {
     public string KeyLevel { get; set; } = "";
     public string SignalName { get; set; } = "";
 
-    // 下单当时的三道闸门读数，写进交易 CSV 用来调参。
-    public double DailyVwap { get; set; } = double.NaN;
-    public double WeeklyVwap { get; set; } = double.NaN;
-    public double Atr14 { get; set; } = double.NaN;
-    public double GapX { get; set; } = double.NaN;
-    public double SlopeX { get; set; } = double.NaN;
-    public double DailyVwapBefore { get; set; } = double.NaN;
-    public double WeeklyVwapBefore { get; set; } = double.NaN;
-    public double GapChangeX { get; set; } = double.NaN;
+    // 下单当时的 VWAP 指标快照：开仓行与平仓行写的是同一份，平仓时不再重算
+    // （那时的 VWAP 已经跑远了）。取不到的一律留 NaN，写进 CSV 时是空白，不能伪造成 0。
+    public VwapStrongReadingModel VwapReading { get; set; }
+
+    public VwapStrongMetricsModel VwapMetrics { get; set; }
 }

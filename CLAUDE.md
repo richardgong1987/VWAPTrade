@@ -5,10 +5,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A **cTrader cBot** (automated trading robot) written in C# against the cAlgo API, targeting
-`net6.0`. The strategy is **VWAP break and reverse**. The daily VWAP is the key level (the yellow
-line): a closed bar whose candle pattern (pinbar / engulfing / fractal / harami) touches it
-becomes an entry, sized against a per-trade risk budget. Direction is gated by the VWAP stack —
-only `close > daily > weekly` may go long, only `close < daily < weekly` may go short.
+`net6.0`. The strategy is **VWAP Strong V1** (`docs/VWAP_Strong_V1.pdf`), a VWAP break-and-reverse
+on **M5 only**. The daily VWAP is the key level (the yellow line): a closed bar whose candle
+pattern (pinbar / engulfing / fractal / harami) touches it becomes an entry, sized against a
+per-trade risk budget. Three gates, in order (`Vwap/VwapStack.cs`):
+
+1. **Stack** — only `close > daily > weekly` may go long, only `close < daily < weekly` may short.
+2. **Distance** — `GapX = direction × (daily − weekly) / ATR ≥ GapMin`.
+3. **Speed** — `SlopeRateX30 = direction × (daily − daily[N]) / ATR × 6/N ≥ SlopeRateMin`.
+
+`direction` is +1 long, −1 short, so a VWAP moving against the trade is negative and can never
+pass — never take an absolute value here. The `6/N` term is unit conversion, not a new condition:
+6 M5 bars = 30 minutes, so any lookback is expressed as an equivalent 30-minute speed and different
+`N` share one threshold. That is why the bot refuses to run on anything but M5. A threshold of 0
+switches that gate off entirely — a missing ATR must not then block the trade.
+
+Both `ATR14_M5` and `ATR14_H1` are always computed and always logged; the `ATR归一周期` parameter
+only picks which one the two gates divide by. `GapChangeX` is recorded but never filters on.
 
 Everything runs on Japan time (`[Robot(TimeZone = TimeZones.TokyoStandardTime)]`). Two separate
 clocks, deliberately decoupled:
@@ -30,9 +43,11 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
 (suffixed `Model`):
 
 - `Vwap/` — `VwapPeriod` (when the VWAP resets), `TradingSession` (when orders may open — a
-  different clock, see above), `VwapStack` (the direction gate), `VwapCalculator` (pure
-  accumulation) — all unit tested — and `VwapSeries`, which reads `Bars` and caches one
-  `VwapSampleModel` per closed bar. It is the single source of VWAP values for drawing and signals.
+  different clock, see above), `VwapStrongMetrics` (the GapX / SlopeRawX / SlopeRateX30 formulas),
+  `VwapStack` (the three gates), `VwapCalculator` (pure accumulation) — all unit tested — and
+  `VwapSeries`, which reads `Bars` and caches one `VwapSampleModel` per closed bar. It is the
+  single source of VWAP values for drawing and signals.
+- `Indicators/` — `Atr14Series` (one timeframe's ATR14, Wilder) and `Atr14Pair` (the M5 + H1 pair).
 - `Signals/` — `SignalDetector` applies the direction gate, builds the daily-VWAP key level for
   the closed bar, and asks `Biz/MainBiz` which candle pattern touches it.
 - `LineDrawer/` — `VwapSlim` draws the three VWAP lines, `SignalMarkers` the entry markers.

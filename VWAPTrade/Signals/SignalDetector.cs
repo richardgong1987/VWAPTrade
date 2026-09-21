@@ -14,13 +14,13 @@ public class SignalDetector {
 
     private readonly Bars _chartBars;
     private readonly VwapSeries _vwapSeries;
-    private readonly Atr14Series _atr14;
+    private readonly Atr14Pair _atr14;
     private readonly TradeSettingsModel _settings;
 
-    public SignalDetector(Bars chartBars, VwapSeries vwapSeries, Atr14Series atr14H1, TradeSettingsModel settings) {
+    public SignalDetector(Bars chartBars, VwapSeries vwapSeries, Atr14Pair atr14, TradeSettingsModel settings) {
         _chartBars = chartBars;
         _vwapSeries = vwapSeries;
-        _atr14 = atr14H1;
+        _atr14 = atr14;
         _settings = settings;
     }
 
@@ -34,9 +34,9 @@ public class SignalDetector {
         CandleModel current = ReadCandle(closedBarIndex);
         VwapSampleModel vwap = _vwapSeries[closedBarIndex];
 
-        // 排列、间距、斜率三道闸门，任何一道过不了这根 K 线就不做。
+        // 排列、距离、速度三道闸门，任何一道过不了这根 K 线就不做。
         VwapStrongReadingModel strong = ReadStrong(closedBarIndex, current, vwap);
-        SignalSideModel side = VwapStack.ResolveSide(strong, _settings.VwapGapMin, _settings.VwapSlopeMin);
+        SignalSideModel side = VwapStack.ResolveSide(strong, _settings.VwapGapMin, _settings.VwapSlopeRateMin);
 
         if (side == SignalSideModel.None)
             return new List<SignalModel>();
@@ -51,14 +51,14 @@ public class SignalDetector {
         signal.BarIndex = closedBarIndex;
         signal.BarTime = _chartBars.OpenTimes[closedBarIndex];
         signal.Strong = strong;
-        signal.GapX = VwapStack.GetGapX(strong, side);
-        signal.SlopeX = VwapStack.GetSlopeX(strong, side);
-        signal.GapChangeX = VwapStack.GetGapChangeX(strong, side);
+        signal.Metrics = VwapStrongMetrics.Compute(strong, side);
         return new List<SignalModel> { signal };
     }
 
     private VwapStrongReadingModel ReadStrong(int closedBarIndex, CandleModel current, VwapSampleModel vwap) {
         VwapSampleModel lookback = ReadLookbackSample(closedBarIndex);
+
+        DateTime openTime = _chartBars.OpenTimes[closedBarIndex];
 
         return new VwapStrongReadingModel {
             Close = current.Close,
@@ -66,7 +66,10 @@ public class SignalDetector {
             WeeklyVwap = vwap.Weekly,
             DailyVwapBefore = lookback?.Daily ?? double.NaN,
             WeeklyVwapBefore = lookback?.Weekly ?? double.NaN,
-            Atr14 = _atr14.TryGetValue(_chartBars.OpenTimes[closedBarIndex], out double atr) ? atr : double.NaN
+            Atr14M5 = _atr14.GetM5(openTime),
+            Atr14H1 = _atr14.GetH1(openTime),
+            LookbackN = _settings.VwapSlopeLookbackBars,
+            SelectedAtrPeriod = _settings.Atr14Source
         };
     }
 

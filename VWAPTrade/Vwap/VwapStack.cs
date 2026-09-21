@@ -1,18 +1,16 @@
 namespace cAlgo.Robots;
 
-// 方向闸门。要开仓，这一根 K 线必须同时满足三件事：
+// 方向闸门（docs/VWAP_Strong_V1.pdf 第 8 节的第 2、5、6 步）。要放行，这一根 K 线必须同时满足：
 //
 //   ① 排列：收盘价 > 日 VWAP > 周 VWAP 只开多；收盘价 < 日 VWAP < 周 VWAP 只开空。
-//   ② 间距：两条 VWAP 离得够开   GapX   = |日 − 周| / ATR14_H1 ≥ GapMin
-//   ③ 斜率：日 VWAP 走得够明显   SlopeX = |日[0] − 日[N]| / ATR14_H1 ≥ SlopeMin
+//   ② 距离：GapMin > 0 时，要求 GapX_Selected ≥ GapMin。
+//   ③ 速度：SlopeRateMin > 0 时，要求 SlopeRateX_Selected ≥ SlopeRateMin。
 //
-// ②③ 的分子都按方向取号，所以逆着方向走时是负数，一定过不了闸门；数值越大 = VWAP 朝正确方向
-// 走得越明显。两者都除以 H1 的 ATR14 归一，同一个阈值才能在不同波动环境里通用。
-//
-// 阈值填 0 就是关掉那一道闸门（与 MovingAverageV1 的开口闸门同一约定）：关掉时不要求 ATR 可用，
-// 免得取不到 ATR 就把所有交易挡光。纯比较，没有 cAlgo 依赖，有单元测试。
+// 阈值填 0 就是那一道闸门完全关闭 —— 此时即使 ATR 或回看数据缺失也不能因此挡掉交易，
+// 否则「关掉的过滤器」反而成了新的过滤条件。公式见 VwapStrongMetrics。
+// 纯比较，没有 cAlgo 依赖，有单元测试。
 public static class VwapStack {
-    public static SignalSideModel ResolveSide(VwapStrongReadingModel reading, double gapMin, double slopeMin) {
+    public static SignalSideModel ResolveSide(VwapStrongReadingModel reading, double gapMin, double slopeRateMin) {
         if (reading == null)
             return SignalSideModel.None;
 
@@ -21,18 +19,21 @@ public static class VwapStack {
         if (side == SignalSideModel.None)
             return SignalSideModel.None;
 
-        if (!PassesFilter(GetGapX(reading, side), gapMin))
+        VwapStrongMetricsModel metrics = VwapStrongMetrics.Compute(reading, side);
+
+        if (!PassesFilter(metrics.GapXSelected, gapMin))
             return SignalSideModel.None;
 
-        if (!PassesFilter(GetSlopeX(reading, side), slopeMin))
+        if (!PassesFilter(metrics.SlopeRateXSelected, slopeRateMin))
             return SignalSideModel.None;
 
         return side;
     }
 
-    // 只看排列，不看间距和斜率。
+    // 只看排列，不看距离和速度。
     public static SignalSideModel ResolveSide(double close, double dailyVwap, double weeklyVwap) {
-        if (!IsUsable(close) || !IsUsable(dailyVwap) || !IsUsable(weeklyVwap))
+        if (!VwapStrongMetrics.IsUsable(close) || !VwapStrongMetrics.IsUsable(dailyVwap) ||
+            !VwapStrongMetrics.IsUsable(weeklyVwap))
             return SignalSideModel.None;
 
         if (close > dailyVwap && dailyVwap > weeklyVwap)
@@ -44,50 +45,13 @@ public static class VwapStack {
         return SignalSideModel.None;
     }
 
-    public static double GetGapX(VwapStrongReadingModel reading, SignalSideModel side) {
-        return Normalize(GetDirectionalGap(reading.DailyVwap, reading.WeeklyVwap, side), reading.Atr14);
-    }
-
-    // 带方向的开口：多头取 日−周，空头取 周−日，所以顺着方向张开时是正数。
-    private static double GetDirectionalGap(double dailyVwap, double weeklyVwap, SignalSideModel side) {
-        return side == SignalSideModel.Buy ? dailyVwap - weeklyVwap : weeklyVwap - dailyVwap;
-    }
-
-    // 开口这 N 根里的变化：正数 = 两条 VWAP 在往外扩，负数 = 在收窄。
-    // 用的是带方向的开口（与 GetGapX 同一口径），所以逆着方向收窄时是负数。只写进 CSV 供调参，
-    // 不参与放行判断。
-    public static double GetGapChangeX(VwapStrongReadingModel reading, SignalSideModel side) {
-        double gapNow = GetDirectionalGap(reading.DailyVwap, reading.WeeklyVwap, side);
-        double gapBefore = GetDirectionalGap(reading.DailyVwapBefore, reading.WeeklyVwapBefore, side);
-
-        return Normalize(gapNow - gapBefore, reading.Atr14);
-    }
-
-    public static double GetSlopeX(VwapStrongReadingModel reading, SignalSideModel side) {
-        double slope = side == SignalSideModel.Buy
-            ? reading.DailyVwap - reading.DailyVwapBefore
-            : reading.DailyVwapBefore - reading.DailyVwap;
-
-        return Normalize(slope, reading.Atr14);
-    }
-
-    private static double Normalize(double distance, double atr) {
-        if (!IsUsable(atr) || atr <= 0.0)
-            return double.NaN;
-
-        return distance / atr;
-    }
-
-    // 阈值 ≤ 0 就是这道闸门没开，直接放行。开着的时候，算不出数值（ATR 缺失、回看那根跨了场）
-    // 一律拦下 —— NaN 跟任何数比较都是 false，不显式挡掉的话反而会漏过去。
-    private static bool PassesFilter(double value, double minimum) {
+    // 阈值 ≤ 0 就是这道闸门没开，直接放行，连 ATR 可不可用都不看。开着的时候，算不出数值
+    // （ATR 缺失、回看那根跨了日切）一律拦下 —— NaN 跟任何数比较都是 false，不显式挡掉反而会漏过去。
+    // 阈值相等时放行（用的是 ≥）。
+    public static bool PassesFilter(double value, double minimum) {
         if (minimum <= 0.0)
             return true;
 
-        return IsUsable(value) && value >= minimum;
-    }
-
-    private static bool IsUsable(double value) {
-        return !double.IsNaN(value) && !double.IsInfinity(value);
+        return VwapStrongMetrics.IsUsable(value) && value >= minimum;
     }
 }

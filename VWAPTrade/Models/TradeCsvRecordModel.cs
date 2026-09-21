@@ -70,4 +70,30 @@ public class TradeCsvRecordModel {
 
     // 开口这 N 根里的变化：正数 = 扩口扩大，负数 = 扩口缩小。
     public double GapChangeX { get; set; } = double.NaN;
+
+    // 以下是 VWAP Strong V1 追加的研究字段（PDF 第 10 节）。两套 ATR 的结果都留着，
+    // *_Selected 两列是实际参与过滤的那一套。
+    public int LookbackN { get; set; }
+
+    public double Atr14M5 { get; set; } = double.NaN;
+
+    public double Atr14H1 { get; set; } = double.NaN;
+
+    public double GapXM5 { get; set; } = double.NaN;
+
+    public double GapXH1 { get; set; } = double.NaN;
+
+    public double SlopeRawXM5 { get; set; } = double.NaN;
+
+    public double SlopeRawXH1 { get; set; } = double.NaN;
+
+    public double SlopeRateX30M5 { get; set; } = double.NaN;
+
+    public double SlopeRateX30H1 { get; set; } = double.NaN;
+
+    public string SelectedAtrPeriod { get; set; }
+
+    public double GapXSelected { get; set; } = double.NaN;
+
+    public double SlopeRateXSelected { get; set; } = double.NaN;
 }

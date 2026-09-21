@@ -17,10 +17,10 @@ public class VWAPTrade : Robot {
     [Parameter("止盈目标", DefaultValue = 2.0, MinValue = 0.5, MaxValue = 20.0, Step = 0.1)]
     public double TakeProfitR { get; set; }
 
-    [Parameter("止损偏移点数", DefaultValue = 400, MinValue = 0, MaxValue = 2000, Group = "风控配置")]
+    [Parameter("止损偏移点数", DefaultValue = 50, MinValue = 0, MaxValue = 2000, Group = "风控配置")]
     public int StopOffsetTicks { get; set; }
 
-    [Parameter("保护止损触发R (0=关闭)", DefaultValue = 1.0, MinValue = 0.0, MaxValue = 30.0, Step = 0.1, Group = "风控配置")]
+    [Parameter("保护止损触发R (0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 30.0, Step = 0.1, Group = "风控配置")]
     public double BreakevenTriggerR { get; set; }
 
     [Parameter("保护止损偏移点数", DefaultValue = 50, MinValue = 0, MaxValue = 2000, Group = "风控配置")]
@@ -29,16 +29,19 @@ public class VWAPTrade : Robot {
     [Parameter("VWAP间距最小值 (ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0, Step = 0.05, Group = "VWAP过滤")]
     public double VwapGapMin { get; set; }
 
-    [Parameter("VWAP斜率最小值 (ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0, Step = 0.05, Group = "VWAP过滤")]
-    public double VwapSlopeMin { get; set; }
+    // 旧参数叫 VwapSlopeMin，比的是原始斜率；这个比的是 30 分钟标准化速度，不是同一个量纲，
+    // 所以换了名字，避免旧值被静默当成新阈值（迁移说明见 docs/VWAP_Strong_V1_migration.md）。
+    [Parameter("VWAP斜率速度最小值 (30分钟标准化, ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0,
+        Step = 0.01, Group = "VWAP过滤")]
+    public double VwapSlopeRateMin { get; set; }
 
-    [Parameter("斜率回看K线数", DefaultValue = 12, MinValue = 1, MaxValue = 200, Group = "VWAP过滤")]
+    [Parameter("斜率回看K线数 N", DefaultValue = 6, MinValue = 1, MaxValue = 200, Group = "VWAP过滤")]
     public int VwapSlopeLookbackBars { get; set; }
 
     [Parameter("ATR归一周期", DefaultValue = Atr14SourceModel.ATR14_H1, Group = "VWAP过滤")]
     public Atr14SourceModel Atr14Source { get; set; }
 
-    [Parameter("启动时清空交易记录CSV", DefaultValue = false, Group = "开发调试")]
+    [Parameter("启动时清空交易记录CSV", DefaultValue = true, Group = "开发调试")]
     public bool ResetTradeLogOnStart { get; set; }
 
     [Parameter("debug调试", DefaultValue = false, Group = "开发调试")]
@@ -64,17 +67,19 @@ public class VWAPTrade : Robot {
 
         LaunchDebug();
 
+        if (!IsSupportedTimeFrame())
+            return;
+
         var settings = new TradeSettingsModel(RiskPct, TakeProfitR, StopOffsetTicks, BreakevenTriggerR, BreakevenOffsetTicks,
-            VwapGapMin, VwapSlopeMin, VwapSlopeLookbackBars);
+            VwapGapMin, VwapSlopeRateMin, VwapSlopeLookbackBars, Atr14Source);
         PrintSettings(settings);
 
         _vwapSeries = new VwapSeries(Bars);
         _vwapSeries.Update();
 
-        // 间距与斜率都按 ATR14 归一，周期由参数选。显式按周期取 K 线，不用图表当前周期，
-        // 这样换到别的周期挂载时行为不变。
-        TimeFrame atrTimeFrame = Atr14Source == Atr14SourceModel.ATR14_M5 ? TimeFrame.Minute5 : TimeFrame.Hour;
-        var atr14 = new Atr14Series(Indicators, MarketData.GetBars(atrTimeFrame));
+        // 两套 ATR14 始终都算、都写进 CSV，「ATR归一周期」只决定过滤器拿哪一套当分母。
+        var atr14 = new Atr14Pair(new Atr14Series(Indicators, MarketData.GetBars(TimeFrame.Minute5)),
+            new Atr14Series(Indicators, MarketData.GetBars(TimeFrame.Hour)));
 
         _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14, settings);
         _signalMarkers = new SignalMarkers(Chart, Symbol.TickSize);
@@ -101,11 +106,30 @@ public class VWAPTrade : Robot {
         Print(
             "*****Trade settings | RiskPct: {0}, TakeProfitR: {1}, StopOffsetTicks: {2}, BreakevenTriggerR: {3}, BreakevenOffsetTicks: {4}",
             settings.RiskPct, settings.TakeProfitR, settings.StopOffsetTicks, settings.BreakevenTriggerR, settings.BreakevenOffsetTicks);
-        Print("*****VWAP filters | GapMin: {0}, SlopeMin: {1}, SlopeLookbackBars: {2}, Atr: {3} (0 = filter off)",
-            settings.VwapGapMin, settings.VwapSlopeMin, settings.VwapSlopeLookbackBars, Atr14Source);
+        Print("*****VWAP filters | GapMin: {0}, SlopeRateMin: {1}, LookbackN: {2} ({3} min), Atr: {4} (0 = filter off)",
+            settings.VwapGapMin, settings.VwapSlopeRateMin, settings.VwapSlopeLookbackBars,
+            settings.VwapSlopeLookbackBars * 5, settings.Atr14Source);
 
         if (settings.RiskPct <= 0.0)
             Print("*****Risk % is 0, so this cBot will never trade. Set it above 0 to enable orders.");
+    }
+
+    // 本版的 6/N 换算写死了「M5 上 6 根 = 30 分钟」，挂到别的周期上这个系数就不成立了。
+    // 与其悄悄按错的系数算，不如直接停下来说清楚。N 也在这里校验。
+    private bool IsSupportedTimeFrame() {
+        if (!Bars.TimeFrame.Equals(TimeFrame.Minute5)) {
+            Print("*****VWAP Strong V1 只支持 M5：当前周期是 {0}。SlopeRateX 的 6/N 换算以 M5 为准，已停止。", Bars.TimeFrame);
+            Stop();
+            return false;
+        }
+
+        if (VwapSlopeLookbackBars < 1) {
+            Print("*****斜率回看K线数 N 必须 ≥ 1：当前是 {0}。已停止。", VwapSlopeLookbackBars);
+            Stop();
+            return false;
+        }
+
+        return true;
     }
 
     private void LaunchDebug() {
