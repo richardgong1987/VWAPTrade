@@ -28,7 +28,7 @@ public class OrderPlanModel {
     // 下单当时的三道闸门读数，写进交易 CSV 用来调参。
     public double DailyVwap { get; set; } = double.NaN;
     public double WeeklyVwap { get; set; } = double.NaN;
-    public double Atr14H1 { get; set; } = double.NaN;
+    public double Atr14 { get; set; } = double.NaN;
     public double GapX { get; set; } = double.NaN;
     public double SlopeX { get; set; } = double.NaN;
     public double DailyVwapBefore { get; set; } = double.NaN;

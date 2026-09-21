@@ -51,7 +51,7 @@ public class TradeCsvRecordModel {
 
     public double WeeklyVwap { get; set; } = double.NaN;
 
-    public double Atr14H1 { get; set; } = double.NaN;
+    public double Atr14 { get; set; } = double.NaN;
 
     public double GapX { get; set; } = double.NaN;
 

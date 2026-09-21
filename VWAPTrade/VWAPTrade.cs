@@ -35,6 +35,9 @@ public class VWAPTrade : Robot {
     [Parameter("斜率回看K线数", DefaultValue = 12, MinValue = 1, MaxValue = 200, Group = "VWAP过滤")]
     public int VwapSlopeLookbackBars { get; set; }
 
+    [Parameter("ATR归一周期", DefaultValue = Atr14SourceModel.ATR14_H1, Group = "VWAP过滤")]
+    public Atr14SourceModel Atr14Source { get; set; }
+
     [Parameter("启动时清空交易记录CSV", DefaultValue = false, Group = "开发调试")]
     public bool ResetTradeLogOnStart { get; set; }
 
@@ -68,10 +71,12 @@ public class VWAPTrade : Robot {
         _vwapSeries = new VwapSeries(Bars);
         _vwapSeries.Update();
 
-        // 间距与斜率都按 H1 的 ATR14 归一，所以要单独取一份 H1 的 K 线。
-        var atr14H1 = new Atr14H1Series(Indicators, MarketData.GetBars(TimeFrame.Hour));
+        // 间距与斜率都按 ATR14 归一，周期由参数选。显式按周期取 K 线，不用图表当前周期，
+        // 这样换到别的周期挂载时行为不变。
+        TimeFrame atrTimeFrame = Atr14Source == Atr14SourceModel.ATR14_M5 ? TimeFrame.Minute5 : TimeFrame.Hour;
+        var atr14 = new Atr14Series(Indicators, MarketData.GetBars(atrTimeFrame));
 
-        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14H1, settings);
+        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14, settings);
         _signalMarkers = new SignalMarkers(Chart, Symbol.TickSize);
         _vwapSlim = new VwapSlim(Chart, _vwapSeries);
         _vwapSlim.Draw();
@@ -96,8 +101,8 @@ public class VWAPTrade : Robot {
         Print(
             "*****Trade settings | RiskPct: {0}, TakeProfitR: {1}, StopOffsetTicks: {2}, BreakevenTriggerR: {3}, BreakevenOffsetTicks: {4}",
             settings.RiskPct, settings.TakeProfitR, settings.StopOffsetTicks, settings.BreakevenTriggerR, settings.BreakevenOffsetTicks);
-        Print("*****VWAP filters | GapMin: {0}, SlopeMin: {1}, SlopeLookbackBars: {2} ({3} = filter off)",
-            settings.VwapGapMin, settings.VwapSlopeMin, settings.VwapSlopeLookbackBars, 0);
+        Print("*****VWAP filters | GapMin: {0}, SlopeMin: {1}, SlopeLookbackBars: {2}, Atr: {3} (0 = filter off)",
+            settings.VwapGapMin, settings.VwapSlopeMin, settings.VwapSlopeLookbackBars, Atr14Source);
 
         if (settings.RiskPct <= 0.0)
             Print("*****Risk % is 0, so this cBot will never trade. Set it above 0 to enable orders.");

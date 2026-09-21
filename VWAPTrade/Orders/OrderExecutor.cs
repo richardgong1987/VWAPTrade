@@ -162,7 +162,7 @@ public class OrderExecutor {
 
         planModel.DailyVwap = signalModel.Strong.DailyVwap;
         planModel.WeeklyVwap = signalModel.Strong.WeeklyVwap;
-        planModel.Atr14H1 = signalModel.Strong.Atr14H1;
+        planModel.Atr14 = signalModel.Strong.Atr14;
         planModel.DailyVwapBefore = signalModel.Strong.DailyVwapBefore;
         planModel.WeeklyVwapBefore = signalModel.Strong.WeeklyVwapBefore;
     }

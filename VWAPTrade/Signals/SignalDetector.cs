@@ -14,13 +14,13 @@ public class SignalDetector {
 
     private readonly Bars _chartBars;
     private readonly VwapSeries _vwapSeries;
-    private readonly Atr14H1Series _atr14H1;
+    private readonly Atr14Series _atr14;
     private readonly TradeSettingsModel _settings;
 
-    public SignalDetector(Bars chartBars, VwapSeries vwapSeries, Atr14H1Series atr14H1, TradeSettingsModel settings) {
+    public SignalDetector(Bars chartBars, VwapSeries vwapSeries, Atr14Series atr14H1, TradeSettingsModel settings) {
         _chartBars = chartBars;
         _vwapSeries = vwapSeries;
-        _atr14H1 = atr14H1;
+        _atr14 = atr14H1;
         _settings = settings;
     }
 
@@ -66,7 +66,7 @@ public class SignalDetector {
             WeeklyVwap = vwap.Weekly,
             DailyVwapBefore = lookback?.Daily ?? double.NaN,
             WeeklyVwapBefore = lookback?.Weekly ?? double.NaN,
-            Atr14H1 = _atr14H1.TryGetValue(_chartBars.OpenTimes[closedBarIndex], out double atr) ? atr : double.NaN
+            Atr14 = _atr14.TryGetValue(_chartBars.OpenTimes[closedBarIndex], out double atr) ? atr : double.NaN
         };
     }
 

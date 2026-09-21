@@ -14,6 +14,7 @@ public class VwapStrongReadingModel {
     // 同一根回看 K 线上的周 VWAP，用来算开口这 N 根里是扩大还是缩小（GapChangeX）。
     public double WeeklyVwapBefore { get; set; }
 
-    // H1 的 ATR14。间距和斜率都除以它做归一，不同波动环境才能用同一个阈值比较。
-    public double Atr14H1 { get; set; }
+    // ATR14（周期由参数选，见 Atr14SourceModel）。间距和斜率都除以它做归一，
+    // 不同波动环境才能用同一个阈值比较。
+    public double Atr14 { get; set; }
 }
