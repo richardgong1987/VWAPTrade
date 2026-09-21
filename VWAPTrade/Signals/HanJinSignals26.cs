@@ -18,16 +18,14 @@ public static class HanJinSignals26 {
     public static HanJinSignalScanModel Scan(CandleModel current, CandleModel previous, CandleModel earlier,
         HanJinSignalOptionsModel options) {
         (SignalSideModel top, SignalSideModel bottom) = Fractal(current, previous, earlier);
-        (SignalSideModel single, SignalSideModel doubleHarami) = Harami(current, previous, earlier);
+        SignalSideModel harami = Harami(current, previous, earlier);
 
         return new HanJinSignalScanModel {
             Pinbar = Pinbar(current, options),
             Engulf = Engulf(current, previous),
             FractalTop = top,
             FractalBottom = bottom,
-            HaramiSingle = single,
-            HaramiDouble = doubleHarami,
-            BigBody = BigBody(current, options)
+            HaramiSingle = harami
         };
     }
 
@@ -66,10 +64,6 @@ public static class HanJinSignals26 {
         return SignalSideModel.None;
     }
 
-    // Continuation: the signal follows the body direction (up -> Buy).
-    private static SignalSideModel FollowBody(int bodyDirection) =>
-        bodyDirection > 0 ? SignalSideModel.Buy : bodyDirection < 0 ? SignalSideModel.Sell : SignalSideModel.None;
-
     // ── ③ Fractal — returns (Top, Bottom) ─────────────────────────────────────
     // Strict structural fractal: the middle bar (previous, [1]) dominates BOTH neighbours on
     // the high line AND the low line.
@@ -83,16 +77,11 @@ public static class HanJinSignals26 {
         return (isTop ? SignalSideModel.Sell : SignalSideModel.None, isBottom ? SignalSideModel.Buy : SignalSideModel.None);
     }
 
-    // ── ④ Harami + double Harami — returns (Single, Double) ────────────────────
-    public static (SignalSideModel Single, SignalSideModel Double) Harami(CandleModel current, CandleModel previous, CandleModel earlier) {
+    // ── ④ Harami ─────────────────────────────────────────────────────────────
+    public static SignalSideModel Harami(CandleModel current, CandleModel previous, CandleModel earlier) {
         bool earlierContainsPrevious = Contains(outer: earlier, inner: previous);
-        SignalSideModel single = earlierContainsPrevious ? HaramiDirection(previous, current) : SignalSideModel.None;
 
-        // HaramiDouble intentionally mirrors HaramiSingle for legacy compatibility; it is not
-        // consumed by the order detector. See docs/design/hanjin-signals-26.md.
-        SignalSideModel doubleHarami = single;
-
-        return (single, doubleHarami);
+        return earlierContainsPrevious ? HaramiDirection(previous, current) : SignalSideModel.None;
     }
 
     private static SignalSideModel HaramiDirection(CandleModel previous, CandleModel current) {
@@ -105,18 +94,6 @@ public static class HanJinSignals26 {
         }
 
         return SignalSideModel.None;
-    }
-
-
-    // ── ⑤ Big Body ────────────────────────────────────────────────────────────
-    public static SignalSideModel BigBody(CandleModel bar) => BigBody(bar, DefaultOptions);
-
-    public static SignalSideModel BigBody(CandleModel bar, HanJinSignalOptionsModel options) {
-        if (!bar.HasRange)
-            return SignalSideModel.None;
-
-        double bodyFraction = System.Math.Abs(bar.Close - bar.Open) / bar.Range;
-        return bodyFraction >= options.BigBodyMinFraction ? FollowBody(bar.BodyDirection) : SignalSideModel.None;
     }
 
     // ── Internal geometry helpers (mirror the Pine private functions) ──────────

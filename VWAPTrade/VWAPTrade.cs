@@ -75,23 +75,18 @@ public class VWAPTrade : Robot {
     private TradeCsvLogger _csvLogger;
 
     protected override void OnStart() {
-        // A blank label would make every "_L"/"_S" label on the symbol look like this bot's order.
-        if (string.IsNullOrWhiteSpace(OrderLabel)) {
-            Print("*****OrderLabel must not be empty. cBot stopped.");
-            Stop();
-            return;
-        }
-
         LaunchDebug();
-
-        if (!IsSupportedTimeFrame())
-            return;
 
         var vwapFilters = new VwapFilterSettingsModel(VwapGapMin, VwapSlopeRateMin, UseGapChangeFilter, GapChangeRateMin,
             GapChangeRateMax);
+        string error = StartupCheck.FindError(Bars.TimeFrame.Equals(TimeFrame.Minute5), Bars.TimeFrame.ToString(), OrderLabel,
+            VwapSlopeLookbackBars, vwapFilters);
 
-        if (!IsValidGapChangeRange(vwapFilters))
+        if (error != null) {
+            Print("*****参数有误，已停止：{0}", error);
+            Stop();
             return;
+        }
 
         var settings = new TradeSettingsModel(RiskPct, TakeProfitR, StopOffsetTicks, BreakevenTriggerR, BreakevenOffsetTicks,
             vwapFilters, VwapSlopeLookbackBars, Atr14Source, TradeDirectionMode);
@@ -118,8 +113,9 @@ public class VWAPTrade : Robot {
         var riskGuard = new RiskGuard();
         var symbolModel = new CAlgoSymbolModel(Symbol);
         var planner = new OrderPlanner(symbolModel, riskGuard, settings);
-        _orderExecutor = new OrderExecutor(this, SymbolName, Bars.TimeFrame.ToString(), OrderLabel.Trim(), planner, riskGuard, _csvLogger,
-            symbolModel, settings);
+        var journal = new TradeJournal(this, _csvLogger, SymbolName, Bars.TimeFrame.ToString());
+        var breakeven = new BreakevenProtector(this, symbolModel, settings);
+        _orderExecutor = new OrderExecutor(this, SymbolName, OrderLabel.Trim(), planner, riskGuard, settings, journal, breakeven);
 
         Print("*****VWAP break and reverse started.");
     }
@@ -138,35 +134,6 @@ public class VWAPTrade : Robot {
 
         if (settings.RiskPct <= 0.0)
             Print("*****Risk % is 0, so this cBot will never trade. Set it above 0 to enable orders.");
-    }
-
-    // Min > Max 是参数填错。不静默对调 —— 那会让回测跑出一个谁也没打算测的区间。
-    private bool IsValidGapChangeRange(VwapFilterSettingsModel filters) {
-        if (!filters.IsGapChangeRangeInverted)
-            return true;
-
-        Print("*****扩口变化最小值 {0} 大于最大值 {1}，区间为空。请修正参数，已停止。", filters.GapChangeRateMin,
-            filters.GapChangeRateMax);
-        Stop();
-        return false;
-    }
-
-    // 本版的 6/N 换算写死了「M5 上 6 根 = 30 分钟」，挂到别的周期上这个系数就不成立了。
-    // 与其悄悄按错的系数算，不如直接停下来说清楚。N 也在这里校验。
-    private bool IsSupportedTimeFrame() {
-        if (!Bars.TimeFrame.Equals(TimeFrame.Minute5)) {
-            Print("*****VWAP Strong V1 只支持 M5：当前周期是 {0}。SlopeRateX 的 6/N 换算以 M5 为准，已停止。", Bars.TimeFrame);
-            Stop();
-            return false;
-        }
-
-        if (VwapSlopeLookbackBars < 1) {
-            Print("*****斜率回看K线数 N 必须 ≥ 1：当前是 {0}。已停止。", VwapSlopeLookbackBars);
-            Stop();
-            return false;
-        }
-
-        return true;
     }
 
     private void LaunchDebug() {

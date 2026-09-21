@@ -61,19 +61,4 @@ public static class TradingSession {
         return time < weekStart + WeekLength ? weekStart : (DateTime?)null;
     }
 
-    public static bool IsNewDaySession(DateTime current, DateTime? previous) {
-        return HasSessionChanged(GetDaySessionStart(current), previous.HasValue ? GetDaySessionStart(previous.Value) : null);
-    }
-
-    public static bool IsNewWeekSession(DateTime current, DateTime? previous) {
-        return HasSessionChanged(GetWeekSessionStart(current), previous.HasValue ? GetWeekSessionStart(previous.Value) : null);
-    }
-
-    // 上一根 K 线落在空档里（previousStart 为 null）也算开新的一场：空档之后就是新的一天。
-    private static bool HasSessionChanged(DateTime? currentStart, DateTime? previousStart) {
-        if (!currentStart.HasValue)
-            return false;
-
-        return currentStart != previousStart;
-    }
 }

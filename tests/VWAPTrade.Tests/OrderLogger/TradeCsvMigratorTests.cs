@@ -19,7 +19,7 @@ namespace VWAPTrade.Tests.OrderLogger {
         private const string BeforeAtrRenameHeader = ResultRHeader + ",WeeklyVWAP_Lookback";
 
         // The real header the logger writes — not a copy, so the tests cannot drift from it.
-        private static readonly string CurrentHeader = TradeCsvSchema.Header;
+        private static readonly string CurrentHeader = TradeCsvColumns.Header;
 
         private const string PreviousHeader =
             "编号,关键位,信号,回撤开仓模式,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,挂单ID,持仓ID,成交ID";
@@ -36,7 +36,7 @@ namespace VWAPTrade.Tests.OrderLogger {
         private const string VwapReadingsRow = LegacyRow + ",空,2410.5,2402.25,3.4,2.426471,0.735294,亏损";
 
         // Old rows carry none of the added columns, so migration pads them all.
-        private static readonly string ExpectedRow = LegacyRow + new string(',', TradeCsvSchema.ColumnCount - 20);
+        private static readonly string ExpectedRow = LegacyRow + new string(',', TradeCsvColumns.Count - 20);
 
         [Fact]
         public void leaves_a_file_that_is_already_on_the_current_schema_alone() {
@@ -121,7 +121,7 @@ namespace VWAPTrade.Tests.OrderLogger {
             Assert.NotNull(upgraded);
             Assert.Equal(CurrentHeader, upgraded[0]);
             Assert.Equal(ExpectedRow, upgraded[1]);
-            Assert.Equal(TradeCsvSchema.ColumnCount, upgraded[1].Split(',').Length);
+            Assert.Equal(TradeCsvColumns.Count, upgraded[1].Split(',').Length);
         }
 
         [Fact]
@@ -143,7 +143,7 @@ namespace VWAPTrade.Tests.OrderLogger {
             Assert.NotNull(upgraded);
             Assert.Equal(CurrentHeader, upgraded[0]);
             Assert.StartsWith(row, upgraded[1]);
-            Assert.Equal(TradeCsvSchema.ColumnCount, upgraded[1].Split(',').Length);
+            Assert.Equal(TradeCsvColumns.Count, upgraded[1].Split(',').Length);
         }
 
         [Fact]
@@ -158,7 +158,7 @@ namespace VWAPTrade.Tests.OrderLogger {
             Assert.NotNull(upgraded);
             Assert.Equal(CurrentHeader, upgraded[0]);
             Assert.StartsWith(row + ",", upgraded[1]);
-            Assert.Equal(TradeCsvSchema.ColumnCount, upgraded[1].Split(',').Length);
+            Assert.Equal(TradeCsvColumns.Count, upgraded[1].Split(',').Length);
         }
 
         [Fact]
@@ -171,7 +171,7 @@ namespace VWAPTrade.Tests.OrderLogger {
 
             Assert.NotNull(upgraded);
             Assert.Equal(CurrentHeader, upgraded[0]);
-            Assert.Equal(VwapReadingsRow + new string(',', TradeCsvSchema.ColumnCount - 27), upgraded[1]);
+            Assert.Equal(VwapReadingsRow + new string(',', TradeCsvColumns.Count - 27), upgraded[1]);
         }
 
         [Fact]

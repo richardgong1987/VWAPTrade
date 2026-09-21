@@ -10,6 +10,4 @@ public class HanJinSignalOptionsModel {
 
     public bool PinbarStrict { get; set; } = true;
 
-    // BigBody: minimum body fraction of the candle range.
-    public double BigBodyMinFraction { get; set; } = 0.7;
 }

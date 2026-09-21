@@ -39,7 +39,7 @@ namespace VWAPTrade.Tests.OrderLogger {
 
         [Fact]
         public void the_schema_has_a_column_for_every_value_the_pdf_lists() {
-            string[] columns = TradeCsvSchema.Header.Split(',');
+            string[] columns = TradeCsvColumns.Header.Split(',');
 
             foreach (string name in new[] {
                          "入场时间", "多空", "DailyVWAP", "WeeklyVWAP", "DailyVWAP_Lookback", "WeeklyVWAP_Lookback",
@@ -56,7 +56,7 @@ namespace VWAPTrade.Tests.OrderLogger {
 
         [Fact]
         public void the_old_columns_keep_their_place_and_meaning() {
-            string[] columns = TradeCsvSchema.Header.Split(',');
+            string[] columns = TradeCsvColumns.Header.Split(',');
 
             // ATR14 / GapX hold the selected period's readings; SlopeX stays the raw slope.
             Assert.Equal(23, System.Array.IndexOf(columns, "ATR14"));

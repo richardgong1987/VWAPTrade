@@ -14,7 +14,7 @@ namespace cAlgo.Robots;
 // Anything else is left untouched: an unrecognised row is safer kept than guessed at.
 public static class TradeCsvMigrator {
     // 当前列数跟着 TradeCsvSchema 走，加列时不用记得回来改这里。
-    private static int CurrentColumnCount => TradeCsvSchema.ColumnCount;
+    private static int CurrentColumnCount => TradeCsvColumns.Count;
 
     // 再往前：只有 20 列业务字段。「回撤开仓模式」与「挂单ID」两列在更早的时候已经废弃。
     // 所有可识别的历史行都先收敛到这 20 列，再在末尾补空列凑到当前的 30 列。
@@ -135,7 +135,7 @@ public static class TradeCsvMigrator {
             return false;
 
         // 只加过列的那些版本：旧表头是当前表头的前缀。
-        if (TradeCsvSchema.Header.StartsWith(header + ",", StringComparison.Ordinal))
+        if (TradeCsvColumns.Header.StartsWith(header + ",", StringComparison.Ordinal))
             return true;
 
         // 改过列名、因而断了前缀关系的那几版。

@@ -50,20 +50,22 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
 
 - `Vwap/` — `VwapPeriod` (when the VWAP resets), `TradingSession` (when orders may open — a
   different clock, see above), `VwapStrongMetrics` (the GapX / SlopeRawX / SlopeRateX30 formulas),
-  `VwapStack` (the three gates), `VwapCalculator` (pure accumulation) — all unit tested — and
+  `VwapStack` (the gates), `StartupCheck` (parameter validation), `VwapCalculator` (pure
+  accumulation) — all unit tested — and
   `VwapSeries`, which reads `Bars` and caches one `VwapSampleModel` per closed bar. It is the
   single source of VWAP values for drawing and signals.
 - `Indicators/` — `Atr14Series` (one timeframe's ATR14, Wilder) and `Atr14Pair` (the M5 + H1 pair).
 - `Signals/` — `SignalDetector` applies the direction gate, builds the daily-VWAP key level for
   the closed bar, and asks `Biz/MainBiz` which candle pattern touches it.
 - `LineDrawer/` — `VwapSlim` draws the three VWAP lines, `SignalMarkers` the entry markers.
-- `Orders/` — `OrderPlanner` (pure sizing/geometry, unit tested) talks to the broker
-  only through the `ISymbolModel` port; `TradeDirectionGate` and `TradeResultR` are pure and unit
-  tested; `OrderExecutor` gates on risk/exposure/direction, submits orders, and moves the stop to
-  breakeven once the trade is far enough in profit.
+- `Orders/` — `OrderPlanner` (pure sizing/geometry), `TradeDirectionGate` and `TradeResultR` (pure,
+  unit tested); `OrderExecutor` only decides whether to place an order and places it, delegating the
+  position bookkeeping to `TradeJournal` and the breakeven stop to `BreakevenProtector`.
 - `Risk/` — `RiskGuard` (trading-session window + stop-distance and risk-money rules, pure).
-- `OrderLogger/` — `TradeCsvLogger` writes the trades CSV; `TradeCsvMigrator` (pure, unit
-  tested) upgrades files written by older builds.
+- `OrderLogger/` — `TradeCsvColumns` is the single declarative table of CSV columns (name + how to
+  read it), so the header and every row are generated from one list and cannot drift apart;
+  `TradeCsvLogger` decides what facts go in a row and when to write it; `TradeCsvMigrator` (pure,
+  unit tested) upgrades files written by older builds.
 - `Models/` — data types: `OrderPlanModel`, `SignalModel`, `TradeLevelModel`,
   `TradeSettingsModel`, `VwapSampleModel`, `TradeDirectionModel`, the `ISymbolModel` port, and
   its `CAlgoSymbolModel` adapter (the one Models/ file that references `cAlgo.API`).

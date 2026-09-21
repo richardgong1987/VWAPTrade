@@ -12,8 +12,4 @@ public class HanJinSignalScanModel {
     public SignalSideModel FractalBottom { get; set; }
 
     public SignalSideModel HaramiSingle { get; set; }
-
-    public SignalSideModel HaramiDouble { get; set; }
-
-    public SignalSideModel BigBody { get; set; }
 }
