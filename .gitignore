@@ -29,3 +29,6 @@ packages/
 scripts/auto-test.env
 *.pwd
 __pycache__
+.env
+scripts/.env
+
