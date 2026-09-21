@@ -58,7 +58,9 @@ public class SignalDetector {
     private VwapStrongReadingModel ReadStrong(int closedBarIndex, CandleModel current, VwapSampleModel vwap) {
         VwapSampleModel lookback = ReadLookbackSample(closedBarIndex);
 
-        DateTime openTime = _chartBars.OpenTimes[closedBarIndex];
+        // ATR 按「信号 K 线的收盘时刻」取值。这根收线的同时下一根就开出来了，所以它的开盘时间
+        // 就是本根的收盘时间 —— closedBarIndex 是 Count-2，下一根必定存在。
+        DateTime closeTime = _chartBars.OpenTimes[closedBarIndex + 1];
 
         return new VwapStrongReadingModel {
             Close = current.Close,
@@ -66,8 +68,8 @@ public class SignalDetector {
             WeeklyVwap = vwap.Weekly,
             DailyVwapBefore = lookback?.Daily ?? double.NaN,
             WeeklyVwapBefore = lookback?.Weekly ?? double.NaN,
-            Atr14M5 = _atr14.GetM5(openTime),
-            Atr14H1 = _atr14.GetH1(openTime),
+            Atr14M5 = _atr14.GetM5(closeTime),
+            Atr14H1 = _atr14.GetH1(closeTime),
             LookbackN = _settings.VwapSlopeLookbackBars,
             SelectedAtrPeriod = _settings.Atr14Source
         };
