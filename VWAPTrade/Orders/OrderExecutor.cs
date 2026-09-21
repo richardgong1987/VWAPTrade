@@ -129,6 +129,14 @@ public class OrderExecutor {
             return false;
         }
 
+        // 方向许可：下单前的最后一道闸门（V1.1 第 6 节第 7 步）。放在算仓位之前，
+        // 不给一个注定要拒的信号做定价；也不回头去改任何指标 —— All 模式与没有这个开关时一致。
+        if (!TradeDirectionGate.IsAllowed(_settings.TradeDirectionMode, signalModel.Level.Side)) {
+            _robot.Print("*****Order skipped | TradeDirection {0} blocks a {1} signal.", _settings.TradeDirectionMode,
+                signalModel.Level.Side);
+            return false;
+        }
+
         string label = _strategyLabelPrefix + signalModel.Level.Name;
 
         if (HasPositionForLevel(label)) {
@@ -152,9 +160,11 @@ public class OrderExecutor {
         return ExecutePlan(planModel);
     }
 
-    private static void CopyVwapReading(OrderPlanModel planModel, SignalModel signalModel) {
+    private void CopyVwapReading(OrderPlanModel planModel, SignalModel signalModel) {
         planModel.VwapReading = signalModel.Strong;
         planModel.VwapMetrics = signalModel.Metrics;
+        planModel.VwapFilters = _settings.VwapFilters;
+        planModel.TradeDirectionMode = _settings.TradeDirectionMode;
     }
 
     // Gates on the level's own label, so the other levels stay free to open their own position.

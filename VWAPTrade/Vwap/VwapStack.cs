@@ -1,17 +1,19 @@
 namespace cAlgo.Robots;
 
-// 方向闸门（docs/VWAP_Strong_V1.pdf 第 8 节的第 2、5、6 步）。要放行，这一根 K 线必须同时满足：
+// VWAP 过滤链（V1.1 第 6 节的第 2、4、5、6 步）。要放行，这一根 K 线必须同时满足：
 //
 //   ① 排列：收盘价 > 日 VWAP > 周 VWAP 只开多；收盘价 < 日 VWAP < 周 VWAP 只开空。
 //   ② 距离：GapMin > 0 时，要求 GapX_Selected ≥ GapMin。
 //   ③ 速度：SlopeRateMin > 0 时，要求 SlopeRateX_Selected ≥ SlopeRateMin。
+//   ④ 扩口：UseGapChangeFilter 开启时，要求 Min ≤ GapChangeRateX30_Selected ≤ Max（闭区间）。
 //
-// 阈值填 0 就是那一道闸门完全关闭 —— 此时即使 ATR 或回看数据缺失也不能因此挡掉交易，
-// 否则「关掉的过滤器」反而成了新的过滤条件。公式见 VwapStrongMetrics。
-// 纯比较，没有 cAlgo 依赖，有单元测试。
+// ②③ 阈值填 0 就是那一道闸门完全关闭；④ 用独立开关（GapChange 允许负值，0 不能当关闭值）。
+// 关闭时即使 ATR 或回看数据缺失也不能因此挡掉交易，否则「关掉的过滤器」反而成了新的过滤条件。
+// 公式见 VwapStrongMetrics。方向许可（LongOnly / ShortOnly）不在这里，那是下单前的最后一道，
+// 见 OrderExecutor。纯比较，没有 cAlgo 依赖，有单元测试。
 public static class VwapStack {
-    public static SignalSideModel ResolveSide(VwapStrongReadingModel reading, double gapMin, double slopeRateMin) {
-        if (reading == null)
+    public static SignalSideModel ResolveSide(VwapStrongReadingModel reading, VwapFilterSettingsModel filters) {
+        if (reading == null || filters == null)
             return SignalSideModel.None;
 
         SignalSideModel side = ResolveSide(reading.Close, reading.DailyVwap, reading.WeeklyVwap);
@@ -21,13 +23,28 @@ public static class VwapStack {
 
         VwapStrongMetricsModel metrics = VwapStrongMetrics.Compute(reading, side);
 
-        if (!PassesFilter(metrics.GapXSelected, gapMin))
+        if (!PassesFilter(metrics.GapXSelected, filters.GapMin))
             return SignalSideModel.None;
 
-        if (!PassesFilter(metrics.SlopeRateXSelected, slopeRateMin))
+        if (!PassesFilter(metrics.SlopeRateXSelected, filters.SlopeRateMin))
+            return SignalSideModel.None;
+
+        if (!PassesGapChangeFilter(metrics.GapChangeRateX30Selected, filters))
             return SignalSideModel.None;
 
         return side;
+    }
+
+    // 开关关着就完全放行，连数值可不可用都不看；开着时算不出数值一律拒绝（V1.1 第 4 节）。
+    // 区间是闭的：等于 Min 或 Max 都算通过。
+    public static bool PassesGapChangeFilter(double value, VwapFilterSettingsModel filters) {
+        if (!filters.UseGapChangeFilter)
+            return true;
+
+        if (!VwapStrongMetrics.IsUsable(value))
+            return false;
+
+        return value >= filters.GapChangeRateMin && value <= filters.GapChangeRateMax;
     }
 
     // 只看排列，不看距离和速度。

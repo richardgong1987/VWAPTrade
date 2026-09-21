@@ -20,6 +20,7 @@
   <ItemGroup Label="Behavior under test">
     <Compile Include="..\..\VWAPTrade\Orders\OrderPlanner.cs" Link="Orders\OrderPlanner.cs" />
     <Compile Include="..\..\VWAPTrade\Orders\TradeResultR.cs" Link="Orders\TradeResultR.cs" />
+    <Compile Include="..\..\VWAPTrade\Orders\TradeDirectionGate.cs" Link="Orders\TradeDirectionGate.cs" />
     <Compile Include="..\..\VWAPTrade\Indicators\ClosedBarSelector.cs" Link="Indicators\ClosedBarSelector.cs" />
     <Compile Include="..\..\VWAPTrade\Risk\RiskGuard.cs" Link="Risk\RiskGuard.cs" />
     <Compile Include="..\..\VWAPTrade\OrderLogger\TradeCsvMigrator.cs" Link="OrderLogger\TradeCsvMigrator.cs" />
@@ -43,6 +44,8 @@
     <Compile Include="..\..\VWAPTrade\Models\VwapStrongReadingModel.cs" Link="Models\VwapStrongReadingModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\VwapStrongMetricsModel.cs" Link="Models\VwapStrongMetricsModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\Atr14SourceModel.cs" Link="Models\Atr14SourceModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\TradeDirectionModeModel.cs" Link="Models\TradeDirectionModeModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\VwapFilterSettingsModel.cs" Link="Models\VwapFilterSettingsModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\CandleModel.cs" Link="Models\CandleModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\HanJinSignalScanModel.cs" Link="Models\HanJinSignalScanModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\HanJinSignalOptionsModel.cs" Link="Models\HanJinSignalOptionsModel.cs" />

@@ -8,7 +8,11 @@ namespace VWAPTrade.Tests {
 
         public static TradeSettingsModel WithStopOffsetTicks(int stopOffsetTicks) =>
             new(riskPct: 1.0, takeProfitR: 2.0, stopOffsetTicks, breakevenTriggerR: 0.0, breakevenOffsetTicks: 0,
-                vwapGapMin: 0.0, vwapSlopeRateMin: 0.0, vwapSlopeLookbackBars: 6,
-                atr14Source: Atr14SourceModel.ATR14_H1);
+                vwapFilters: NoFilters(), vwapSlopeLookbackBars: 6, atr14Source: Atr14SourceModel.ATR14_H1,
+                tradeDirectionMode: TradeDirectionModeModel.All);
+
+        // 全部过滤关闭：被测的几何与仓位计算不该被闸门影响。
+        public static VwapFilterSettingsModel NoFilters() =>
+            new(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: false, gapChangeRateMin: 0.0, gapChangeRateMax: 0.0);
     }
 }

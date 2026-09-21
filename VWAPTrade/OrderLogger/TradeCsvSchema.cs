@@ -16,7 +16,9 @@ public static class TradeCsvSchema {
         "多空", "DailyVWAP", "WeeklyVWAP", "ATR14", "GapX", "SlopeX", "最终结果",
         "DailyVWAP_Lookback", "ResultR", "GapChangeX", "WeeklyVWAP_Lookback",
         "LookbackN", "ATR14_M5", "ATR14_H1", "GapX_M5", "GapX_H1", "SlopeRawX_M5", "SlopeRawX_H1",
-        "SlopeRateX30_M5", "SlopeRateX30_H1", "SelectedATRPeriod", "GapX_Selected", "SlopeRateX_Selected"
+        "SlopeRateX30_M5", "SlopeRateX30_H1", "SelectedATRPeriod", "GapX_Selected", "SlopeRateX_Selected",
+        "TradeDirectionMode", "UseGapChangeFilter", "GapChangeRateMin", "GapChangeRateMax", "GapChangeRawPrice",
+        "GapChangeRawX_M5", "GapChangeRawX_H1", "GapChangeRateX30_M5", "GapChangeRateX30_H1", "GapChangeRateX30_Selected"
     };
 
     public static int ColumnCount => Columns.Length;

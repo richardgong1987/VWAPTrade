@@ -45,7 +45,10 @@ namespace VWAPTrade.Tests.OrderLogger {
                          "入场时间", "多空", "DailyVWAP", "WeeklyVWAP", "DailyVWAP_Lookback", "WeeklyVWAP_Lookback",
                          "LookbackN", "ATR14_M5", "ATR14_H1", "GapX_M5", "GapX_H1", "SlopeRawX_M5", "SlopeRawX_H1",
                          "SlopeRateX30_M5", "SlopeRateX30_H1", "SelectedATRPeriod", "GapX_Selected",
-                         "SlopeRateX_Selected", "GapChangeX", "ResultR"
+                         "SlopeRateX_Selected", "GapChangeX", "ResultR",
+                         "TradeDirectionMode", "UseGapChangeFilter", "GapChangeRateMin", "GapChangeRateMax",
+                         "GapChangeRawPrice", "GapChangeRawX_M5", "GapChangeRawX_H1", "GapChangeRateX30_M5",
+                         "GapChangeRateX30_H1", "GapChangeRateX30_Selected"
                      }) {
                 Assert.Contains(name, columns);
             }

@@ -75,6 +75,17 @@ public class TradeCsvLogger {
     private static void FillVwapColumns(TradeCsvRecordModel record, OrderPlanModel planModel) {
         VwapStrongReadingModel reading = planModel?.VwapReading;
         VwapStrongMetricsModel metrics = planModel?.VwapMetrics;
+        VwapFilterSettingsModel filters = planModel?.VwapFilters;
+
+        if (planModel != null)
+            record.TradeDirectionMode = planModel.TradeDirectionMode.ToString();
+
+        if (filters != null) {
+            record.UseGapChangeFilter = filters.UseGapChangeFilter.ToString();
+            // 过滤没开时不写 Min/Max —— 那两个数当时根本没参与判断，写出来会被误读成生效过。
+            record.GapChangeRateMin = filters.UseGapChangeFilter ? filters.GapChangeRateMin : double.NaN;
+            record.GapChangeRateMax = filters.UseGapChangeFilter ? filters.GapChangeRateMax : double.NaN;
+        }
 
         if (reading != null) {
             record.DailyVwap = reading.DailyVwap;
@@ -100,6 +111,12 @@ public class TradeCsvLogger {
         record.GapXSelected = metrics.GapXSelected;
         record.SlopeRateXSelected = metrics.SlopeRateXSelected;
         record.GapChangeX = metrics.GapChangeX;
+        record.GapChangeRawPrice = metrics.GapChangeRawPrice;
+        record.GapChangeRawXM5 = metrics.GapChangeRawXM5;
+        record.GapChangeRawXH1 = metrics.GapChangeRawXH1;
+        record.GapChangeRateX30M5 = metrics.GapChangeRateX30M5;
+        record.GapChangeRateX30H1 = metrics.GapChangeRateX30H1;
+        record.GapChangeRateX30Selected = metrics.GapChangeRateX30Selected;
 
         // 旧列保持原义：GapX = 所选那一套的距离，SlopeX = 原始斜率（未做 30 分钟归一）。
         record.GapX = metrics.GapXSelected;
@@ -188,7 +205,12 @@ public class TradeCsvLogger {
             Escape(FormatReading(recordModel.GapXH1)), Escape(FormatReading(recordModel.SlopeRawXM5)),
             Escape(FormatReading(recordModel.SlopeRawXH1)), Escape(FormatReading(recordModel.SlopeRateX30M5)),
             Escape(FormatReading(recordModel.SlopeRateX30H1)), Escape(recordModel.SelectedAtrPeriod),
-            Escape(FormatReading(recordModel.GapXSelected)), Escape(FormatReading(recordModel.SlopeRateXSelected)));
+            Escape(FormatReading(recordModel.GapXSelected)), Escape(FormatReading(recordModel.SlopeRateXSelected)),
+            Escape(recordModel.TradeDirectionMode), Escape(recordModel.UseGapChangeFilter),
+            Escape(FormatReading(recordModel.GapChangeRateMin)), Escape(FormatReading(recordModel.GapChangeRateMax)),
+            Escape(FormatReading(recordModel.GapChangeRawPrice)), Escape(FormatReading(recordModel.GapChangeRawXM5)),
+            Escape(FormatReading(recordModel.GapChangeRawXH1)), Escape(FormatReading(recordModel.GapChangeRateX30M5)),
+            Escape(FormatReading(recordModel.GapChangeRateX30H1)), Escape(FormatReading(recordModel.GapChangeRateX30Selected)));
         System.IO.File.AppendAllText(_filePath, line + Environment.NewLine, CsvEncoding);
     }
 

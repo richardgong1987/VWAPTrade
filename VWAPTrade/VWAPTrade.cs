@@ -41,6 +41,22 @@ public class VWAPTrade : Robot {
     [Parameter("ATR归一周期", DefaultValue = Atr14SourceModel.ATR14_H1, Group = "VWAP过滤")]
     public Atr14SourceModel Atr14Source { get; set; }
 
+    // 扩口变化用独立开关，不沿用「0 = 关闭」：它允许负值，有效区间还可能跨过 0。
+    [Parameter("扩口变化过滤", DefaultValue = false, Group = "VWAP过滤")]
+    public bool UseGapChangeFilter { get; set; }
+
+    [Parameter("扩口变化最小值 (30M标准化)", DefaultValue = -0.04, MinValue = -10.0, MaxValue = 10.0, Step = 0.01,
+        Group = "VWAP过滤")]
+    public double GapChangeRateMin { get; set; }
+
+    [Parameter("扩口变化最大值 (30M标准化)", DefaultValue = 0.01, MinValue = -10.0, MaxValue = 10.0, Step = 0.01,
+        Group = "VWAP过滤")]
+    public double GapChangeRateMax { get; set; }
+
+    // 只做「最终交易许可」，不影响任何指标计算：All 模式的成交结果与没有这个开关时完全一致。
+    [Parameter("交易方向", DefaultValue = TradeDirectionModeModel.All, Group = "交易方向")]
+    public TradeDirectionModeModel TradeDirectionMode { get; set; }
+
     [Parameter("启动时清空交易记录CSV", DefaultValue = true, Group = "开发调试")]
     public bool ResetTradeLogOnStart { get; set; }
 
@@ -70,8 +86,14 @@ public class VWAPTrade : Robot {
         if (!IsSupportedTimeFrame())
             return;
 
+        var vwapFilters = new VwapFilterSettingsModel(VwapGapMin, VwapSlopeRateMin, UseGapChangeFilter, GapChangeRateMin,
+            GapChangeRateMax);
+
+        if (!IsValidGapChangeRange(vwapFilters))
+            return;
+
         var settings = new TradeSettingsModel(RiskPct, TakeProfitR, StopOffsetTicks, BreakevenTriggerR, BreakevenOffsetTicks,
-            VwapGapMin, VwapSlopeRateMin, VwapSlopeLookbackBars, Atr14Source);
+            vwapFilters, VwapSlopeLookbackBars, Atr14Source, TradeDirectionMode);
         PrintSettings(settings);
 
         _vwapSeries = new VwapSeries(Bars);
@@ -107,11 +129,25 @@ public class VWAPTrade : Robot {
             "*****Trade settings | RiskPct: {0}, TakeProfitR: {1}, StopOffsetTicks: {2}, BreakevenTriggerR: {3}, BreakevenOffsetTicks: {4}",
             settings.RiskPct, settings.TakeProfitR, settings.StopOffsetTicks, settings.BreakevenTriggerR, settings.BreakevenOffsetTicks);
         Print("*****VWAP filters | GapMin: {0}, SlopeRateMin: {1}, LookbackN: {2} ({3} min), Atr: {4} (0 = filter off)",
-            settings.VwapGapMin, settings.VwapSlopeRateMin, settings.VwapSlopeLookbackBars,
+            settings.VwapFilters.GapMin, settings.VwapFilters.SlopeRateMin, settings.VwapSlopeLookbackBars,
             settings.VwapSlopeLookbackBars * 5, settings.Atr14Source);
+        Print("*****GapChange filter | Enabled: {0}, Min: {1}, Max: {2} | TradeDirection: {3}",
+            settings.VwapFilters.UseGapChangeFilter, settings.VwapFilters.GapChangeRateMin,
+            settings.VwapFilters.GapChangeRateMax, settings.TradeDirectionMode);
 
         if (settings.RiskPct <= 0.0)
             Print("*****Risk % is 0, so this cBot will never trade. Set it above 0 to enable orders.");
+    }
+
+    // Min > Max 是参数填错。不静默对调 —— 那会让回测跑出一个谁也没打算测的区间。
+    private bool IsValidGapChangeRange(VwapFilterSettingsModel filters) {
+        if (!filters.IsGapChangeRangeInverted)
+            return true;
+
+        Print("*****扩口变化最小值 {0} 大于最大值 {1}，区间为空。请修正参数，已停止。", filters.GapChangeRateMin,
+            filters.GapChangeRateMax);
+        Stop();
+        return false;
     }
 
     // 本版的 6/N 换算写死了「M5 上 6 根 = 30 分钟」，挂到别的周期上这个系数就不成立了。

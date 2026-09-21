@@ -43,9 +43,18 @@ public static class VwapStrongMetrics {
         metrics.SlopeRawXSelected = isM5 ? metrics.SlopeRawXM5 : metrics.SlopeRawXH1;
         metrics.SlopeRateXSelected = isM5 ? metrics.SlopeRateX30M5 : metrics.SlopeRateX30H1;
 
-        // 开口变化沿用原公式：现在的方向性开口减去 N 根前的，再用所选 ATR 归一。
+        // 扩口变化：现在的方向性开口减去 N 根之前的。多空都已经由 direction 统一成「顺势为正」，
+        // 所以扩大恒为正、缩小恒为负，多空共用同一个区间（V1.1 第 3.4 节）。
         double gapBefore = direction * (reading.DailyVwapBefore - reading.WeeklyVwapBefore);
-        metrics.GapChangeX = Divide(gapRaw - gapBefore, reading.SelectedAtr);
+        metrics.GapChangeRawPrice = Subtract(gapRaw, gapBefore);
+        metrics.GapChangeRawXM5 = Divide(metrics.GapChangeRawPrice, reading.Atr14M5);
+        metrics.GapChangeRawXH1 = Divide(metrics.GapChangeRawPrice, reading.Atr14H1);
+        metrics.GapChangeRateX30M5 = Multiply(metrics.GapChangeRawXM5, rateFactor);
+        metrics.GapChangeRateX30H1 = Multiply(metrics.GapChangeRawXH1, rateFactor);
+        metrics.GapChangeRateX30Selected = isM5 ? metrics.GapChangeRateX30M5 : metrics.GapChangeRateX30H1;
+
+        // 旧字段保持原定义：未做 30 分钟标准化的那一版。
+        metrics.GapChangeX = isM5 ? metrics.GapChangeRawXM5 : metrics.GapChangeRawXH1;
 
         return metrics;
     }
@@ -60,6 +69,13 @@ public static class VwapStrongMetrics {
             return double.NaN;
 
         return value / atr;
+    }
+
+    private static double Subtract(double left, double right) {
+        if (!IsUsable(left) || !IsUsable(right))
+            return double.NaN;
+
+        return left - right;
     }
 
     private static double Multiply(double value, double factor) {

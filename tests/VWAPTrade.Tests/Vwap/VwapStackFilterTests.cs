@@ -7,6 +7,10 @@ namespace VWAPTrade.Tests.Vwap {
     // filter off completely — even a missing ATR must not block the trade then.
     public class VwapStackFilterTests {
         // Long: gap = 4.0, slope over N=6 = 2.0. H1 ATR 8 -> GapX 0.5, SlopeRawX 0.25, rate 0.25.
+        private static VwapFilterSettingsModel Filters(double gapMin = 0.0, double slopeRateMin = 0.0,
+            bool useGapChangeFilter = false, double gapChangeRateMin = 0.0, double gapChangeRateMax = 0.0) =>
+            new(gapMin, slopeRateMin, useGapChangeFilter, gapChangeRateMin, gapChangeRateMax);
+
         private static VwapStrongReadingModel Long(double atrH1 = 8.0, double dailyBefore = 102.0, int lookbackN = 6) =>
             new() {
                 Close = 106.0, DailyVwap = 104.0, WeeklyVwap = 100.0,
@@ -17,7 +21,7 @@ namespace VWAPTrade.Tests.Vwap {
 
         [Fact]
         public void both_filters_off_lets_the_stack_decide_on_its_own() {
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(Long(), gapMin: 0.0, slopeRateMin: 0.0));
+            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(Long(), Filters(gapMin: 0.0, slopeRateMin: 0.0)));
         }
 
         [Fact]
@@ -25,29 +29,29 @@ namespace VWAPTrade.Tests.Vwap {
             // Switched off means switched off: an unusable ATR must not become a filter of its own.
             VwapStrongReadingModel noAtr = Long(atrH1: double.NaN);
 
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(noAtr, gapMin: 0.0, slopeRateMin: 0.0));
+            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(noAtr, Filters(gapMin: 0.0, slopeRateMin: 0.0)));
         }
 
         [Fact]
         public void a_missing_lookback_cannot_block_a_trade_while_the_rate_filter_is_off() {
             VwapStrongReadingModel noLookback = Long(dailyBefore: double.NaN);
 
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(noLookback, gapMin: 0.3, slopeRateMin: 0.0));
+            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(noLookback, Filters(gapMin: 0.3, slopeRateMin: 0.0)));
         }
 
         [Fact]
         public void an_enabled_filter_rejects_a_missing_atr() {
             VwapStrongReadingModel noAtr = Long(atrH1: double.NaN);
 
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(noAtr, gapMin: 0.1, slopeRateMin: 0.0));
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(noAtr, gapMin: 0.0, slopeRateMin: 0.1));
+            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(noAtr, Filters(gapMin: 0.1, slopeRateMin: 0.0)));
+            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(noAtr, Filters(gapMin: 0.0, slopeRateMin: 0.1)));
         }
 
         [Fact]
         public void an_enabled_rate_filter_rejects_a_missing_lookback() {
             VwapStrongReadingModel noLookback = Long(dailyBefore: double.NaN);
 
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(noLookback, gapMin: 0.0, slopeRateMin: 0.1));
+            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(noLookback, Filters(gapMin: 0.0, slopeRateMin: 0.1)));
         }
 
         [Theory]
@@ -55,7 +59,7 @@ namespace VWAPTrade.Tests.Vwap {
         [InlineData(0.49, SignalSideModel.Buy)]
         [InlineData(0.51, SignalSideModel.None)]
         public void the_gap_filter_uses_greater_or_equal(double gapMin, SignalSideModel expected) {
-            Assert.Equal(expected, VwapStack.ResolveSide(Long(), gapMin, slopeRateMin: 0.0));
+            Assert.Equal(expected, VwapStack.ResolveSide(Long(), Filters(gapMin: gapMin)));
         }
 
         [Theory]
@@ -63,7 +67,7 @@ namespace VWAPTrade.Tests.Vwap {
         [InlineData(0.24, SignalSideModel.Buy)]
         [InlineData(0.26, SignalSideModel.None)]
         public void the_rate_filter_uses_greater_or_equal(double slopeRateMin, SignalSideModel expected) {
-            Assert.Equal(expected, VwapStack.ResolveSide(Long(), gapMin: 0.0, slopeRateMin));
+            Assert.Equal(expected, VwapStack.ResolveSide(Long(), Filters(slopeRateMin: slopeRateMin)));
         }
 
         [Fact]
@@ -72,15 +76,15 @@ namespace VWAPTrade.Tests.Vwap {
             // is 0.50. A threshold of 0.4 passes only because the rate, not the raw slope, is used.
             VwapStrongReadingModel faster = Long(lookbackN: 3);
 
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(faster, gapMin: 0.0, slopeRateMin: 0.4));
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(Long(lookbackN: 6), gapMin: 0.0, slopeRateMin: 0.4));
+            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(faster, Filters(gapMin: 0.0, slopeRateMin: 0.4)));
+            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(Long(lookbackN: 6), Filters(gapMin: 0.0, slopeRateMin: 0.4)));
         }
 
         [Fact]
         public void a_falling_vwap_can_never_satisfy_a_positive_rate_threshold() {
             VwapStrongReadingModel falling = Long(dailyBefore: 110.0);
 
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(falling, gapMin: 0.0, slopeRateMin: 0.01));
+            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(falling, Filters(gapMin: 0.0, slopeRateMin: 0.01)));
         }
 
         [Fact]
@@ -88,7 +92,7 @@ namespace VWAPTrade.Tests.Vwap {
             VwapStrongReadingModel belowVwap = Long();
             belowVwap.Close = 99.0; // close under the daily VWAP: no long
 
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(belowVwap, gapMin: 0.0, slopeRateMin: 0.0));
+            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(belowVwap, Filters(gapMin: 0.0, slopeRateMin: 0.0)));
         }
 
         [Fact]
@@ -96,7 +100,7 @@ namespace VWAPTrade.Tests.Vwap {
             VwapStrongReadingModel crossed = Long();
             crossed.WeeklyVwap = 105.0; // daily < weekly while the close is above both
 
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(crossed, gapMin: 0.0, slopeRateMin: 0.0));
+            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(crossed, Filters(gapMin: 0.0, slopeRateMin: 0.0)));
         }
     }
 }

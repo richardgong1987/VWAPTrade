@@ -13,9 +13,15 @@ per-trade risk budget. Three gates, in order (`Vwap/VwapStack.cs`):
 1. **Stack** — only `close > daily > weekly` may go long, only `close < daily < weekly` may short.
 2. **Distance** — `GapX = direction × (daily − weekly) / ATR ≥ GapMin`.
 3. **Speed** — `SlopeRateX30 = direction × (daily − daily[N]) / ATR × 6/N ≥ SlopeRateMin`.
+4. **Gap change** — `GapChangeRateX30 = (gap − gap[N]) / ATR × 6/N` must sit inside
+   `[GapChangeRateMin, GapChangeRateMax]`, but only when `UseGapChangeFilter` is on.
+5. **Direction** — `TradeDirectionGate` (All / LongOnly / ShortOnly), the last gate before sizing.
 
 `direction` is +1 long, −1 short, so a VWAP moving against the trade is negative and can never
-pass — never take an absolute value here. The `6/N` term is unit conversion, not a new condition:
+pass — never take an absolute value here. Gates 2 and 3 switch off with a threshold of 0; gate 4
+needs its own boolean, because a gap change is legitimately negative and its useful interval can
+straddle 0, so 0 cannot double as "off". Gate 5 defaults to `All` and must leave results identical
+to a build without it. The `6/N` term is unit conversion, not a new condition:
 6 M5 bars = 30 minutes, so any lookback is expressed as an equivalent 30-minute speed and different
 `N` share one threshold. That is why the bot refuses to run on anything but M5. A threshold of 0
 switches that gate off entirely — a missing ATR must not then block the trade.
@@ -52,8 +58,9 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
   the closed bar, and asks `Biz/MainBiz` which candle pattern touches it.
 - `LineDrawer/` — `VwapSlim` draws the three VWAP lines, `SignalMarkers` the entry markers.
 - `Orders/` — `OrderPlanner` (pure sizing/geometry, unit tested) talks to the broker
-  only through the `ISymbolModel` port; `OrderExecutor` gates on risk/exposure, submits orders,
-  and moves the stop to breakeven once the trade is far enough in profit.
+  only through the `ISymbolModel` port; `TradeDirectionGate` and `TradeResultR` are pure and unit
+  tested; `OrderExecutor` gates on risk/exposure/direction, submits orders, and moves the stop to
+  breakeven once the trade is far enough in profit.
 - `Risk/` — `RiskGuard` (trading-session window + stop-distance and risk-money rules, pure).
 - `OrderLogger/` — `TradeCsvLogger` writes the trades CSV; `TradeCsvMigrator` (pure, unit
   tested) upgrades files written by older builds.

@@ -30,4 +30,9 @@ public class OrderPlanModel {
     public VwapStrongReadingModel VwapReading { get; set; }
 
     public VwapStrongMetricsModel VwapMetrics { get; set; }
+
+    // 下单当时生效的过滤设置与方向许可，一并写进 CSV：日后看一行就知道这笔是在什么口径下成交的。
+    public VwapFilterSettingsModel VwapFilters { get; set; }
+
+    public TradeDirectionModeModel TradeDirectionMode { get; set; }
 }

@@ -34,9 +34,10 @@ public class SignalDetector {
         CandleModel current = ReadCandle(closedBarIndex);
         VwapSampleModel vwap = _vwapSeries[closedBarIndex];
 
-        // 排列、距离、速度三道闸门，任何一道过不了这根 K 线就不做。
+        // 排列、距离、速度、扩口四道闸门，任何一道过不了这根 K 线就不做。
+        // 方向许可（LongOnly / ShortOnly）不在这里 —— 那是下单前的最后一道，见 OrderExecutor。
         VwapStrongReadingModel strong = ReadStrong(closedBarIndex, current, vwap);
-        SignalSideModel side = VwapStack.ResolveSide(strong, _settings.VwapGapMin, _settings.VwapSlopeRateMin);
+        SignalSideModel side = VwapStack.ResolveSide(strong, _settings.VwapFilters);
 
         if (side == SignalSideModel.None)
             return new List<SignalModel>();

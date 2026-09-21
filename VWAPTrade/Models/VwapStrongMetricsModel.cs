@@ -27,6 +27,23 @@ public class VwapStrongMetricsModel {
     // 旧 SlopeX 列保留「原始斜率」的含义，取所选 ATR 那一套。
     public double SlopeRawXSelected { get; set; } = double.NaN;
 
-    // 开口这 N 根里的变化，用所选 ATR 归一。只记录，不参与过滤（PDF 第 11 节）。
+    // 旧字段：开口这 N 根里的变化，用所选 ATR 归一、未做 30 分钟标准化。
+    // V1.1 保留它的原定义不动，新口径另开下面的 GapChangeRate* 字段，免得新旧 CSV 混淆。
     public double GapChangeX { get; set; } = double.NaN;
+
+    // 扩口变化（V1.1 第 3 节）。先算价格上的原始变化，再分别用两套 ATR 归一，
+    // 最后 × 6/N 换算成「等效 30 分钟扩口速度」—— 与 Slope 同一套标准化，N 不同才能比。
+    //   > 0 顺势开口扩大   ≈ 0 基本稳定   < 0 顺势开口缩小
+    public double GapChangeRawPrice { get; set; } = double.NaN;
+
+    public double GapChangeRawXM5 { get; set; } = double.NaN;
+
+    public double GapChangeRawXH1 { get; set; } = double.NaN;
+
+    public double GapChangeRateX30M5 { get; set; } = double.NaN;
+
+    public double GapChangeRateX30H1 { get; set; } = double.NaN;
+
+    // 实际参与过滤的那一套。
+    public double GapChangeRateX30Selected { get; set; } = double.NaN;
 }

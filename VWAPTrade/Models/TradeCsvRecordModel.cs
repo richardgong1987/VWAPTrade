@@ -96,4 +96,25 @@ public class TradeCsvRecordModel {
     public double GapXSelected { get; set; } = double.NaN;
 
     public double SlopeRateXSelected { get; set; } = double.NaN;
+
+    // 以下是 V1.1 追加的字段。前四个是当时生效的设置，后六个是扩口变化的读数。
+    public string TradeDirectionMode { get; set; }
+
+    public string UseGapChangeFilter { get; set; }
+
+    public double GapChangeRateMin { get; set; } = double.NaN;
+
+    public double GapChangeRateMax { get; set; } = double.NaN;
+
+    public double GapChangeRawPrice { get; set; } = double.NaN;
+
+    public double GapChangeRawXM5 { get; set; } = double.NaN;
+
+    public double GapChangeRawXH1 { get; set; } = double.NaN;
+
+    public double GapChangeRateX30M5 { get; set; } = double.NaN;
+
+    public double GapChangeRateX30H1 { get; set; } = double.NaN;
+
+    public double GapChangeRateX30Selected { get; set; } = double.NaN;
 }
