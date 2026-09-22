@@ -15,13 +15,20 @@ per-trade risk budget. Three gates, in order (`Vwap/VwapStack.cs`):
 3. **Speed** — `SlopeRateX30 = direction × (daily − daily[N]) / ATR × 6/N ≥ SlopeRateMin`.
 4. **Gap change** — `GapChangeRateX30 = (gap − gap[N]) / ATR × 6/N` must sit inside
    `[GapChangeRateMin, GapChangeRateMax]`, but only when `UseGapChangeFilter` is on.
-5. **Direction** — `TradeDirectionGate` (All / LongOnly / ShortOnly), the last gate before sizing.
+5. **Departure** — `Vwap/DepartureTracker.cs`, from `docs/VWAP_Strong_V2.pdf` §6: the price must
+   first genuinely leave the daily VWAP before a pattern touching that line may be traded.
+   `DepartureX = direction × (close − daily) / ATR ≥ DepartureMin` on `DepartureConfirmBars`
+   consecutive closes, then it locks — the pullback it is waiting for must not undo it. Cleared by
+   an entry, a new daily period, the structure flipping or failing, or `DepartureMaxWaitBars`
+   running out. Its structure direction comes from `daily vs weekly` alone, never from the close,
+   because the pullback pushes the close back through the daily VWAP.
+6. **Direction** — `TradeDirectionGate` (All / LongOnly / ShortOnly), the last gate before sizing.
 
 `direction` is +1 long, −1 short, so a VWAP moving against the trade is negative and can never
-pass — never take an absolute value here. Gates 2 and 3 switch off with a threshold of 0; gate 4
+pass — never take an absolute value here. Gates 2, 3 and 5 switch off with a threshold of 0; gate 4
 needs its own boolean, because a gap change is legitimately negative and its useful interval can
-straddle 0, so 0 cannot double as "off". Gate 5 defaults to `All` and must leave results identical
-to a build without it. The `6/N` term is unit conversion, not a new condition:
+straddle 0, so 0 cannot double as "off". Gates 5 and 6 default to off/`All` and must leave results
+identical to a build without them. The `6/N` term is unit conversion, not a new condition:
 6 M5 bars = 30 minutes, so any lookback is expressed as an equivalent 30-minute speed and different
 `N` share one threshold. That is why the bot refuses to run on anything but M5. A threshold of 0
 switches that gate off entirely — a missing ATR must not then block the trade.
@@ -50,13 +57,15 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
 
 - `Vwap/` — `VwapPeriod` (when the VWAP resets), `TradingSession` (when orders may open — a
   different clock, see above), `VwapStrongMetrics` (the GapX / SlopeRawX / SlopeRateX30 formulas),
-  `VwapStack` (the gates), `StartupCheck` (parameter validation), `VwapCalculator` (pure
-  accumulation) — all unit tested — and
+  `VwapStack` (the gates), `DepartureTracker` (the leave-then-return state machine),
+  `StartupCheck` (parameter validation), `VwapCalculator` (pure accumulation) — all unit tested — and
   `VwapSeries`, which reads `Bars` and caches one `VwapSampleModel` per closed bar. It is the
   single source of VWAP values for drawing and signals.
 - `Indicators/` — `Atr14Series` (one timeframe's ATR14, Wilder) and `Atr14Pair` (the M5 + H1 pair).
-- `Signals/` — `SignalDetector` applies the direction gate, builds the daily-VWAP key level for
-  the closed bar, and asks `Biz/MainBiz` which candle pattern touches it.
+- `Signals/` — `SignalDetector` applies the direction gate, feeds every closed bar to
+  `DepartureTracker` (catching up over history on the first call, so results do not depend on how
+  much history the platform loaded), builds the daily-VWAP key level for the closed bar, and asks
+  `Biz/MainBiz` which candle pattern touches it.
 - `LineDrawer/` — `VwapSlim` draws the three VWAP lines, `SignalMarkers` the entry markers.
 - `Orders/` — `OrderPlanner` (pure sizing/geometry), `TradeDirectionGate` and `TradeResultR` (pure,
   unit tested); `OrderExecutor` only decides whether to place an order and places it, delegating the
@@ -67,7 +76,8 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
   `TradeCsvLogger` decides what facts go in a row and when to write it; `TradeCsvMigrator` (pure,
   unit tested) upgrades files written by older builds.
 - `Models/` — data types: `OrderPlanModel`, `SignalModel`, `TradeLevelModel`,
-  `TradeSettingsModel`, `VwapSampleModel`, `TradeDirectionModel`, the `ISymbolModel` port, and
+  `TradeSettingsModel`, `VwapSampleModel`, `TradeDirectionModel`, `DepartureSettingsModel`,
+  `DepartureBarModel`, the `ISymbolModel` port, and
   its `CAlgoSymbolModel` adapter (the one Models/ file that references `cAlgo.API`).
 
 Rule of thumb: classes with no `using cAlgo.API` are pure and testable; keep them that way.

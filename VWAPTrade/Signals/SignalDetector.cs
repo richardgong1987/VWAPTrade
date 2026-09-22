@@ -16,12 +16,20 @@ public class SignalDetector {
     private readonly VwapSeries _vwapSeries;
     private readonly Atr14Pair _atr14;
     private readonly TradeSettingsModel _settings;
+    private readonly DepartureTracker _departureTracker;
 
-    public SignalDetector(Bars chartBars, VwapSeries vwapSeries, Atr14Pair atr14, TradeSettingsModel settings) {
+    // Last bar handed to the Departure state machine. It has to see every closed bar in order,
+    // so the first call walks the whole loaded history — otherwise the first trades of a run
+    // would depend on how much history the platform happened to load.
+    private int _lastDepartureBarIndex = -1;
+
+    public SignalDetector(Bars chartBars, VwapSeries vwapSeries, Atr14Pair atr14, TradeSettingsModel settings,
+        DepartureTracker departureTracker) {
         _chartBars = chartBars;
         _vwapSeries = vwapSeries;
         _atr14 = atr14;
         _settings = settings;
+        _departureTracker = departureTracker;
     }
 
     // 这根收盘 K 线上最多一个信号：先过方向闸门，再看形态有没有长在日 VWAP 上。
@@ -30,6 +38,8 @@ public class SignalDetector {
 
         if (_chartBars.Count < MinimumBarCount || closedBarIndex >= _vwapSeries.Count)
             return new List<SignalModel>();
+
+        UpdateDeparture(closedBarIndex);
 
         CandleModel current = ReadCandle(closedBarIndex);
         VwapSampleModel vwap = _vwapSeries[closedBarIndex];
@@ -40,6 +50,11 @@ public class SignalDetector {
         SignalSideModel side = VwapStack.ResolveSide(strong, _settings.VwapFilters);
 
         if (side == SignalSideModel.None)
+            return new List<SignalModel>();
+
+        // Leave first, then pull back: a pattern on the daily VWAP that never left it is not a
+        // V2 trade. Off when DepartureMin = 0, and then this line changes nothing.
+        if (!_departureTracker.IsAllowed(side))
             return new List<SignalModel>();
 
         // 关键位是日 VWAP —— 图上那条黄线；周 VWAP 只当方向闸门，不作为关键位。
@@ -54,6 +69,39 @@ public class SignalDetector {
         signal.Strong = strong;
         signal.Metrics = VwapStrongMetrics.Compute(strong, side);
         return new List<SignalModel> { signal };
+    }
+
+    // Catch the state machine up to this bar. Skipped entirely when the gate is off, so a run
+    // with DepartureMin = 0 does not even pay for the ATR lookups.
+    private void UpdateDeparture(int closedBarIndex) {
+        if (!_departureTracker.IsEnabled)
+            return;
+
+        for (int barIndex = _lastDepartureBarIndex + 1; barIndex <= closedBarIndex; barIndex++) {
+            _departureTracker.Observe(ReadDepartureBar(barIndex));
+        }
+
+        _lastDepartureBarIndex = closedBarIndex;
+    }
+
+    private DepartureBarModel ReadDepartureBar(int barIndex) {
+        VwapSampleModel vwap = _vwapSeries[barIndex];
+
+        // Same rule as ReadStrong: the ATR is read at the bar's close, which is the next bar's
+        // open time. barIndex never exceeds Count-2, so that bar exists.
+        DateTime closeTime = _chartBars.OpenTimes[barIndex + 1];
+
+        return new DepartureBarModel {
+            Close = _chartBars.ClosePrices[barIndex],
+            DailyVwap = vwap.Daily,
+            WeeklyVwap = vwap.Weekly,
+            SelectedAtr = ReadSelectedAtr(closeTime),
+            IsDayPeriodStart = vwap.IsDayPeriodStart
+        };
+    }
+
+    private double ReadSelectedAtr(DateTime closeTime) {
+        return _settings.Atr14Source == Atr14SourceModel.ATR14_M5 ? _atr14.GetM5(closeTime) : _atr14.GetH1(closeTime);
     }
 
     private VwapStrongReadingModel ReadStrong(int closedBarIndex, CandleModel current, VwapSampleModel vwap) {

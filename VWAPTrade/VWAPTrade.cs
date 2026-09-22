@@ -54,6 +54,17 @@ public class VWAPTrade : Robot {
         Group = "VWAP过滤")]
     public double GapChangeRateMax { get; set; }
 
+    // 先离开日 VWAP、再回踩，才允许做这根形态（V2 第 6 节）。0 = 关闭，结果与没有这道闸门时完全一致。
+    [Parameter("离开最小距离 (ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0, Step = 0.1,
+        Group = "Departure离开确认")]
+    public double DepartureMin { get; set; }
+
+    [Parameter("离开连续确认K线数", DefaultValue = 3, MinValue = 1, MaxValue = 100, Group = "Departure离开确认")]
+    public int DepartureConfirmBars { get; set; }
+
+    [Parameter("离开后最大等待K线数 (0=不限制)", DefaultValue = 0, MinValue = 0, MaxValue = 500, Group = "Departure离开确认")]
+    public int DepartureMaxWaitBars { get; set; }
+
     // 只做「最终交易许可」，不影响任何指标计算：All 模式的成交结果与没有这个开关时完全一致。
     [Parameter("交易方向", DefaultValue = TradeDirectionModeModel.All, Group = "交易方向")]
     public TradeDirectionModeModel TradeDirectionMode { get; set; }
@@ -68,6 +79,7 @@ public class VWAPTrade : Robot {
     public string FileName { get; set; }
 
     private SignalDetector _signalDetector;
+    private DepartureTracker _departureTracker;
     private SignalMarkers _signalMarkers;
     private VwapSeries _vwapSeries;
     private VwapSlim _vwapSlim;
@@ -79,8 +91,9 @@ public class VWAPTrade : Robot {
 
         var vwapFilters = new VwapFilterSettingsModel(VwapGapMin, VwapSlopeRateMin, UseGapChangeFilter, GapChangeRateMin,
             GapChangeRateMax);
+        var departureSettings = new DepartureSettingsModel(DepartureMin, DepartureConfirmBars, DepartureMaxWaitBars);
         string error = StartupCheck.FindError(Bars.TimeFrame.Equals(TimeFrame.Minute5), Bars.TimeFrame.ToString(), OrderLabel,
-            VwapSlopeLookbackBars, vwapFilters);
+            VwapSlopeLookbackBars, vwapFilters, departureSettings);
 
         if (error != null) {
             Print("*****参数有误，已停止：{0}", error);
@@ -90,7 +103,7 @@ public class VWAPTrade : Robot {
 
         var settings = new TradeSettingsModel(RiskPct, TakeProfitR, StopOffsetTicks, BreakevenTriggerR, BreakevenOffsetTicks,
             vwapFilters, VwapSlopeLookbackBars, Atr14Source, TradeDirectionMode);
-        PrintSettings(settings);
+        PrintSettings(settings, departureSettings);
 
         _vwapSeries = new VwapSeries(Bars);
         _vwapSeries.Update();
@@ -99,7 +112,8 @@ public class VWAPTrade : Robot {
         var atr14 = new Atr14Pair(new Atr14Series(Indicators, MarketData.GetBars(TimeFrame.Minute5)),
             new Atr14Series(Indicators, MarketData.GetBars(TimeFrame.Hour)));
 
-        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14, settings);
+        _departureTracker = new DepartureTracker(departureSettings);
+        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14, settings, _departureTracker);
         _signalMarkers = new SignalMarkers(Chart, Symbol.TickSize);
         _vwapSlim = new VwapSlim(Chart, _vwapSeries);
         _vwapSlim.Draw();
@@ -121,7 +135,7 @@ public class VWAPTrade : Robot {
     }
 
     // 风险% 留 0 就等于这个 cBot 不会下任何单，启动时说清楚，免得以为是信号没出。
-    private void PrintSettings(TradeSettingsModel settings) {
+    private void PrintSettings(TradeSettingsModel settings, DepartureSettingsModel departureSettings) {
         Print(
             "*****Trade settings | RiskPct: {0}, TakeProfitR: {1}, StopOffsetTicks: {2}, BreakevenTriggerR: {3}, BreakevenOffsetTicks: {4}",
             settings.RiskPct, settings.TakeProfitR, settings.StopOffsetTicks, settings.BreakevenTriggerR, settings.BreakevenOffsetTicks);
@@ -131,6 +145,9 @@ public class VWAPTrade : Robot {
         Print("*****GapChange filter | Enabled: {0}, Min: {1}, Max: {2} | TradeDirection: {3}",
             settings.VwapFilters.UseGapChangeFilter, settings.VwapFilters.GapChangeRateMin,
             settings.VwapFilters.GapChangeRateMax, settings.TradeDirectionMode);
+        Print("*****Departure gate | Enabled: {0}, Min: {1}, ConfirmBars: {2}, MaxWaitBars: {3} (0 = no limit)",
+            departureSettings.IsEnabled, departureSettings.DepartureMin, departureSettings.ConfirmBars,
+            departureSettings.MaxWaitBars);
 
         if (settings.RiskPct <= 0.0)
             Print("*****Risk % is 0, so this cBot will never trade. Set it above 0 to enable orders.");
@@ -177,6 +194,8 @@ public class VWAPTrade : Robot {
         foreach (SignalModel signalModel in _signalDetector.DetectOnClosedBar()) {
             if (_orderExecutor.ExecuteIfSignal(signalModel)) {
                 _signalMarkers.Draw(signalModel);
+                // 开完仓这一段「先离开」就用掉了：下一笔必须重新走一遍离开确认（V2 第 6.3 节）。
+                _departureTracker.ResetAfterEntry();
             }
         }
     }

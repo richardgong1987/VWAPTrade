@@ -7,9 +7,12 @@ namespace VWAPTrade.Tests.Vwap {
         private static VwapFilterSettingsModel Filters(bool use = false, double min = 0.0, double max = 0.0) =>
             new(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: use, gapChangeRateMin: min, gapChangeRateMax: max);
 
+        private static DepartureSettingsModel Departure(double min = 0.0, int confirmBars = 3, int maxWaitBars = 0) =>
+            new(departureMin: min, confirmBars: confirmBars, maxWaitBars: maxWaitBars);
+
         private static string Check(bool isM5 = true, string label = "VWAPTrade-label", int lookbackN = 6,
-            VwapFilterSettingsModel filters = null) =>
-            StartupCheck.FindError(isM5, "m5", label, lookbackN, filters ?? Filters());
+            VwapFilterSettingsModel filters = null, DepartureSettingsModel departure = null) =>
+            StartupCheck.FindError(isM5, "m5", label, lookbackN, filters ?? Filters(), departure ?? Departure());
 
         [Fact]
         public void a_correct_setup_reports_nothing() {
@@ -47,6 +50,24 @@ namespace VWAPTrade.Tests.Vwap {
         public void an_inverted_range_is_ignored_while_the_filter_is_off() {
             // 关着的时候根本不读 Min/Max，不该因为它们拦住启动。
             Assert.Null(Check(filters: Filters(use: false, min: 0.05, max: -0.05)));
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void a_departure_confirm_count_below_one_is_refused(int confirmBars) {
+            Assert.Contains("离开连续确认K线数", Check(departure: Departure(min: 1.0, confirmBars: confirmBars)));
+        }
+
+        [Fact]
+        public void a_negative_departure_wait_is_refused() {
+            Assert.Contains("最大等待K线数", Check(departure: Departure(min: 1.0, maxWaitBars: -1)));
+        }
+
+        [Fact]
+        public void departure_values_are_ignored_while_the_gate_is_off() {
+            // 关着的时候这两个值不参与判断，不该因为它们拦住启动。
+            Assert.Null(Check(departure: Departure(min: 0.0, confirmBars: 0, maxWaitBars: -1)));
         }
 
         [Fact]

@@ -27,6 +27,7 @@
     <Compile Include="..\..\VWAPTrade\OrderLogger\TradeCsvColumns.cs" Link="OrderLogger\TradeCsvColumns.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapCalculator.cs" Link="Vwap\VwapCalculator.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapStack.cs" Link="Vwap\VwapStack.cs" />
+    <Compile Include="..\..\VWAPTrade\Vwap\DepartureTracker.cs" Link="Vwap\DepartureTracker.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\StartupCheck.cs" Link="Vwap\StartupCheck.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapStrongMetrics.cs" Link="Vwap\VwapStrongMetrics.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\TradingSession.cs" Link="Vwap\TradingSession.cs" />
@@ -48,6 +49,8 @@
     <Compile Include="..\..\VWAPTrade\Models\Atr14SourceModel.cs" Link="Models\Atr14SourceModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\TradeDirectionModeModel.cs" Link="Models\TradeDirectionModeModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\VwapFilterSettingsModel.cs" Link="Models\VwapFilterSettingsModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\DepartureSettingsModel.cs" Link="Models\DepartureSettingsModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\DepartureBarModel.cs" Link="Models\DepartureBarModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\CandleModel.cs" Link="Models\CandleModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\HanJinSignalScanModel.cs" Link="Models\HanJinSignalScanModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\HanJinSignalOptionsModel.cs" Link="Models\HanJinSignalOptionsModel.cs" />
