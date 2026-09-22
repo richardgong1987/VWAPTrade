@@ -51,6 +51,7 @@
     <Compile Include="..\..\VWAPTrade\Models\VwapFilterSettingsModel.cs" Link="Models\VwapFilterSettingsModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\DepartureSettingsModel.cs" Link="Models\DepartureSettingsModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\DepartureBarModel.cs" Link="Models\DepartureBarModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\DepartureSnapshotModel.cs" Link="Models\DepartureSnapshotModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\CandleModel.cs" Link="Models\CandleModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\HanJinSignalScanModel.cs" Link="Models\HanJinSignalScanModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\HanJinSignalOptionsModel.cs" Link="Models\HanJinSignalOptionsModel.cs" />

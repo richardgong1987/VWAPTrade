@@ -90,6 +90,7 @@ public class OrderExecutor {
         planModel.VwapMetrics = signalModel.Metrics;
         planModel.VwapFilters = _settings.VwapFilters;
         planModel.TradeDirectionMode = _settings.TradeDirectionMode;
+        planModel.Departure = signalModel.Departure;
     }
 
     // 按这一档自己的标签判断，其他档照样可以开自己的仓。查的是券商的实时持仓而不是内存里的表，

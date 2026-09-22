@@ -72,7 +72,16 @@ public static class TradeCsvColumns {
         Reading("GapChangeRawX_H1", r => Metrics(r)?.GapChangeRawXH1),
         Reading("GapChangeRateX30_M5", r => Metrics(r)?.GapChangeRateX30M5),
         Reading("GapChangeRateX30_H1", r => Metrics(r)?.GapChangeRateX30H1),
-        Reading("GapChangeRateX30_Selected", r => Metrics(r)?.GapChangeRateX30Selected)
+        Reading("GapChangeRateX30_Selected", r => Metrics(r)?.GapChangeRateX30Selected),
+
+        // ── Departure：先离开日 VWAP，再回踩（V2 第 6 节、第 10.1 节）────────────
+        Reading("DepartureX_Selected", r => EnabledDeparture(r)?.DepartureX),
+        Reading("DepartureMin", r => Departure(r)?.Settings?.DepartureMin),
+        Whole("DepartureConfirmBars", r => EnabledDeparture(r)?.Settings?.ConfirmBars),
+        Whole("DepartureConfirmCount", r => EnabledDeparture(r)?.ConfirmCount),
+        Text("DepartureConfirmed", r => EnabledDeparture(r)?.IsConfirmed.ToString() ?? ""),
+        Whole("DepartureBarsSinceConfirmed", r => EnabledDeparture(r)?.BarsSinceConfirmed),
+        Whole("DepartureMaxWaitBars", r => EnabledDeparture(r)?.Settings?.MaxWaitBars)
     };
 
     public static int Count => Columns.Count;
@@ -103,6 +112,15 @@ public static class TradeCsvColumns {
         return filters != null && filters.UseGapChangeFilter ? filters : null;
     }
 
+    private static DepartureSnapshotModel Departure(TradeRecordModel record) => record.EntryPlan?.Departure;
+
+    // 同 EnabledRange 的理由：闸门关着时那些状态和根数都没参与判断，只留 DepartureMin —— 它本身
+    // 就是开关（0 = 关闭），写出来正好说明这一趟是在关着的口径下跑的。
+    private static DepartureSnapshotModel EnabledDeparture(TradeRecordModel record) {
+        DepartureSnapshotModel departure = Departure(record);
+        return departure != null && departure.IsEnabled ? departure : null;
+    }
+
     // ── 列的三种取值方式 ─────────────────────────────────────────────────────
     private static TradeCsvColumn Text(string name, Func<TradeRecordModel, string> read) =>
         new(name, record => read(record) ?? "");
@@ -123,6 +141,11 @@ public static class TradeCsvColumns {
     // 回看根数：没有快照的行（例如更早版本留下的持仓）留空，不要写成 0 —— 0 不是合法的 N。
     private static TradeCsvColumn BarCount(string name, Func<TradeRecordModel, int?> read) =>
         new(name, record => read(record) is int value && value >= 1 ? value.ToString(CultureInfo.InvariantCulture) : "");
+
+    // Departure 的计数与根数：0 是合法读数（刚清零、刚确认），所以不能套用 BarCount 的「≥1 才写」。
+    // 取不到（闸门关着、或旧版本留下的行）才留空。
+    private static TradeCsvColumn Whole(string name, Func<TradeRecordModel, int?> read) =>
+        new(name, record => read(record) is int value ? value.ToString(CultureInfo.InvariantCulture) : "");
 
     private static string FormatReading(double? value) {
         if (!value.HasValue || double.IsNaN(value.Value) || double.IsInfinity(value.Value))

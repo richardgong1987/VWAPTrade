@@ -222,6 +222,46 @@ namespace VWAPTrade.Tests.Vwap {
         }
 
         [Fact]
+        public void the_snapshot_reports_the_state_of_the_bar_just_observed() {
+            DepartureTracker tracker = Tracker(min: 1.0, confirmBars: 3, maxWaitBars: 4);
+
+            Observe(tracker, barCount: 3, close: 102.0);
+            Observe(tracker, barCount: 2, close: 99.5); // pullback, through the line
+
+            DepartureSnapshotModel snapshot = tracker.CreateSnapshot();
+
+            Assert.True(snapshot.IsEnabled);
+            Assert.True(snapshot.IsConfirmed);
+            Assert.Equal(3, snapshot.ConfirmCount);
+            Assert.Equal(2, snapshot.BarsSinceConfirmed);
+            Assert.Equal(-0.5, snapshot.DepartureX, precision: 9); // measured on the pullback bar
+            Assert.Equal(1.0, snapshot.Settings.DepartureMin, precision: 9);
+            Assert.Equal(4, snapshot.Settings.MaxWaitBars);
+        }
+
+        [Fact]
+        public void the_snapshot_keeps_the_entry_state_after_the_departure_is_spent() {
+            // The close row is written minutes after the fill, and the fill clears the departure.
+            DepartureTracker tracker = Tracker(confirmBars: 3);
+
+            Observe(tracker, barCount: 3, close: 102.0);
+            DepartureSnapshotModel snapshot = tracker.CreateSnapshot();
+            tracker.ResetAfterEntry();
+
+            Assert.True(snapshot.IsConfirmed);
+            Assert.Equal(3, snapshot.ConfirmCount);
+        }
+
+        [Fact]
+        public void a_snapshot_from_a_run_with_the_gate_off_is_marked_as_such() {
+            DepartureSnapshotModel snapshot = Tracker(min: 0.0).CreateSnapshot();
+
+            Assert.False(snapshot.IsEnabled);
+            Assert.False(snapshot.IsConfirmed);
+            Assert.Equal(double.NaN, snapshot.DepartureX);
+        }
+
+        [Fact]
         public void the_threshold_is_inclusive() {
             DepartureTracker tracker = Tracker(min: 1.0, confirmBars: 2);
 

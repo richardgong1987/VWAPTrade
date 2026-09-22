@@ -35,6 +35,12 @@ namespace VWAPTrade.Tests.OrderLogger {
         // A row with the seven VWAP reading columns but not the three newest ones.
         private const string VwapReadingsRow = LegacyRow + ",空,2410.5,2402.25,3.4,2.426471,0.735294,亏损";
 
+        // The shipped 53-column build, the one the V2 notes describe — frozen history, spelled out
+        // rather than derived from the current header so that inserting a column anywhere but the
+        // end fails this test instead of silently re-mapping every historical file.
+        private const string BeforeDepartureHeader =
+            "编号,关键位,信号,备注,交易品种,时间周期,入场时间,入场价格,平仓价格,止损价格,止盈价格,风险价格距离,下单数量,平仓原因,开仓账户权益,平仓账户权益,平仓盈亏,平仓时间,持仓ID,成交ID,多空,DailyVWAP,WeeklyVWAP,ATR14,GapX,SlopeX,最终结果,DailyVWAP_Lookback,ResultR,GapChangeX,WeeklyVWAP_Lookback,LookbackN,ATR14_M5,ATR14_H1,GapX_M5,GapX_H1,SlopeRawX_M5,SlopeRawX_H1,SlopeRateX30_M5,SlopeRateX30_H1,SelectedATRPeriod,GapX_Selected,SlopeRateX_Selected,TradeDirectionMode,UseGapChangeFilter,GapChangeRateMin,GapChangeRateMax,GapChangeRawPrice,GapChangeRawX_M5,GapChangeRawX_H1,GapChangeRateX30_M5,GapChangeRateX30_H1,GapChangeRateX30_Selected";
+
         // Old rows carry none of the added columns, so migration pads them all.
         private static readonly string ExpectedRow = LegacyRow + new string(',', TradeCsvColumns.Count - 20);
 
@@ -43,6 +49,21 @@ namespace VWAPTrade.Tests.OrderLogger {
             string[] lines = { CurrentHeader, ExpectedRow };
 
             Assert.Null(TradeCsvMigrator.Upgrade(lines, CurrentHeader));
+        }
+
+        [Fact]
+        public void pads_a_file_from_the_build_before_the_departure_columns() {
+            // 53 columns in, 60 out: the seven Departure columns were appended, so the old header
+            // is still a prefix and its rows only need empty cells on the right.
+            string row = LegacyRow + new string(',', 33);
+            string[] lines = { BeforeDepartureHeader, row };
+
+            string[] upgraded = TradeCsvMigrator.Upgrade(lines, CurrentHeader);
+
+            Assert.NotNull(upgraded);
+            Assert.Equal(CurrentHeader, upgraded[0]);
+            Assert.Equal(ExpectedRow, upgraded[1]);
+            Assert.StartsWith(BeforeDepartureHeader + ",", CurrentHeader);
         }
 
         [Fact]

@@ -55,6 +55,91 @@ namespace VWAPTrade.Tests.OrderLogger {
         }
 
         [Fact]
+        public void the_schema_has_a_column_for_every_departure_value_the_pdf_lists() {
+            string[] columns = TradeCsvColumns.Header.Split(',');
+
+            foreach (string name in new[] {
+                         "DepartureX_Selected", "DepartureMin", "DepartureConfirmBars", "DepartureConfirmCount",
+                         "DepartureConfirmed", "DepartureBarsSinceConfirmed", "DepartureMaxWaitBars"
+                     }) {
+                Assert.Contains(name, columns);
+            }
+        }
+
+        [Fact]
+        public void a_row_reports_the_departure_state_of_its_entry_bar() {
+            string[] cells = Row(Snapshot(min: 1.0, confirmBars: 3, maxWaitBars: 4, departureX: -0.35, confirmed: true,
+                confirmCount: 3, barsSinceConfirmed: 2));
+
+            // The entry bar is a pullback bar, so a negative distance here is the normal case.
+            Assert.Equal("-0.35", Cell(cells, "DepartureX_Selected"));
+            Assert.Equal("1", Cell(cells, "DepartureMin"));
+            Assert.Equal("3", Cell(cells, "DepartureConfirmBars"));
+            Assert.Equal("3", Cell(cells, "DepartureConfirmCount"));
+            Assert.Equal("True", Cell(cells, "DepartureConfirmed"));
+            Assert.Equal("2", Cell(cells, "DepartureBarsSinceConfirmed"));
+            Assert.Equal("4", Cell(cells, "DepartureMaxWaitBars"));
+        }
+
+        [Fact]
+        public void a_zero_count_is_written_rather_than_blanked() {
+            // 0 is a real reading here — it says the count had just been cleared. Blanking it
+            // would be indistinguishable from "this build did not record it".
+            string[] cells = Row(Snapshot(min: 1.0, confirmCount: 0, barsSinceConfirmed: 0));
+
+            Assert.Equal("0", Cell(cells, "DepartureConfirmCount"));
+            Assert.Equal("0", Cell(cells, "DepartureBarsSinceConfirmed"));
+        }
+
+        [Fact]
+        public void a_run_with_the_gate_off_reports_only_the_threshold() {
+            // Same reason GapChangeRateMin/Max stay blank while that filter is off: those values
+            // took no part in the decision, and 0 would read as "it was required and met".
+            string[] cells = Row(Snapshot(min: 0.0, confirmBars: 3, maxWaitBars: 4));
+
+            Assert.Equal("0", Cell(cells, "DepartureMin"));
+            Assert.Equal("", Cell(cells, "DepartureConfirmBars"));
+            Assert.Equal("", Cell(cells, "DepartureConfirmCount"));
+            Assert.Equal("", Cell(cells, "DepartureConfirmed"));
+            Assert.Equal("", Cell(cells, "DepartureBarsSinceConfirmed"));
+            Assert.Equal("", Cell(cells, "DepartureMaxWaitBars"));
+            Assert.Equal("", Cell(cells, "DepartureX_Selected"));
+        }
+
+        [Fact]
+        public void a_row_without_a_departure_snapshot_leaves_every_departure_column_blank() {
+            // Positions opened by an older build: no snapshot, so nothing to report — 0 would be
+            // a fabricated reading.
+            string[] cells = Row(departure: null);
+
+            foreach (string name in new[] {
+                         "DepartureX_Selected", "DepartureMin", "DepartureConfirmBars", "DepartureConfirmCount",
+                         "DepartureConfirmed", "DepartureBarsSinceConfirmed", "DepartureMaxWaitBars"
+                     }) {
+                Assert.Equal("", Cell(cells, name));
+            }
+        }
+
+        private static DepartureSnapshotModel Snapshot(double min, int confirmBars = 3, int maxWaitBars = 0,
+            double departureX = double.NaN, bool confirmed = false, int confirmCount = 0, int barsSinceConfirmed = 0) =>
+            new() {
+                Settings = new DepartureSettingsModel(departureMin: min, confirmBars: confirmBars, maxWaitBars: maxWaitBars),
+                DepartureX = departureX,
+                IsConfirmed = confirmed,
+                ConfirmCount = confirmCount,
+                BarsSinceConfirmed = barsSinceConfirmed
+            };
+
+        private static string[] Row(DepartureSnapshotModel departure) {
+            TradeRecordModel record = new() { EntryPlan = new OrderPlanModel { Departure = departure } };
+
+            return TradeCsvColumns.ToCsvLine(record).Split(',');
+        }
+
+        private static string Cell(string[] cells, string columnName) =>
+            cells[System.Array.IndexOf(TradeCsvColumns.Header.Split(','), columnName)];
+
+        [Fact]
         public void the_old_columns_keep_their_place_and_meaning() {
             string[] columns = TradeCsvColumns.Header.Split(',');
 

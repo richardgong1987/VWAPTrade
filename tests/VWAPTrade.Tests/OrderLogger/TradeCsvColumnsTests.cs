@@ -47,6 +47,17 @@ namespace VWAPTrade.Tests.OrderLogger {
         }
 
         [Fact]
+        public void the_departure_columns_were_appended_after_the_previous_schema() {
+            // The 53-column schema the V2 notes describe is still a prefix, so files written by
+            // that build migrate by padding on the right (see TradeCsvMigrator).
+            string[] columns = TradeCsvColumns.Header.Split(',');
+
+            Assert.Equal(60, columns.Length);
+            Assert.Equal(52, System.Array.IndexOf(columns, "GapChangeRateX30_Selected"));
+            Assert.Equal(53, System.Array.IndexOf(columns, "DepartureX_Selected"));
+        }
+
+        [Fact]
         public void the_renamed_atr_column_kept_its_position() {
             // ATR14_H1 became ATR14 when the period became selectable. Values in older files sit at
             // that same index, so TradeCsvMigrator can pad those rows instead of remapping them —

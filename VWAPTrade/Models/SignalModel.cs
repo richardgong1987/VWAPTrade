@@ -26,6 +26,9 @@ public class SignalModel {
 
     public VwapStrongMetricsModel Metrics { get; set; }
 
+    // Departure 状态机在这根 K 线上的状态，同样带进 CSV。
+    public DepartureSnapshotModel Departure { get; set; }
+
     public int BarIndex { get; set; }
 
     public DateTime BarTime { get; set; }

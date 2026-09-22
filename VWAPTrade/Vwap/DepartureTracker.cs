@@ -26,6 +26,7 @@ public class DepartureTracker {
     private int _confirmCount;
     private bool _departed;
     private int _barsSinceConfirmed;
+    private double _lastDepartureX = double.NaN;
 
     public DepartureTracker(DepartureSettingsModel settings) {
         _settings = settings;
@@ -46,8 +47,14 @@ public class DepartureTracker {
 
         _structureSide = side;
 
-        if (side == SignalSideModel.None)
+        if (side == SignalSideModel.None) {
+            _lastDepartureX = double.NaN;
             return;
+        }
+
+        // Measured on every bar, including the locked ones: the distance the CSV reports for a
+        // trade is the one on its entry bar, which is a pullback bar.
+        _lastDepartureX = ComputeDepartureX(bar, side);
 
         if (_departed) {
             _barsSinceConfirmed++;
@@ -58,7 +65,18 @@ public class DepartureTracker {
             ResetProgress(); // Waited too long; this bar starts counting a fresh departure.
         }
 
-        CountDeparture(ComputeDepartureX(bar, side));
+        CountDeparture(_lastDepartureX);
+    }
+
+    // The state on the bar just observed, copied out for the trade CSV.
+    public DepartureSnapshotModel CreateSnapshot() {
+        return new DepartureSnapshotModel {
+            Settings = _settings,
+            DepartureX = _lastDepartureX,
+            IsConfirmed = _departed,
+            ConfirmCount = _confirmCount,
+            BarsSinceConfirmed = _barsSinceConfirmed
+        };
     }
 
     // The last gate before the pattern check: the signal must run with the departed structure.

@@ -77,7 +77,7 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
   unit tested) upgrades files written by older builds.
 - `Models/` — data types: `OrderPlanModel`, `SignalModel`, `TradeLevelModel`,
   `TradeSettingsModel`, `VwapSampleModel`, `TradeDirectionModel`, `DepartureSettingsModel`,
-  `DepartureBarModel`, the `ISymbolModel` port, and
+  `DepartureBarModel`, `DepartureSnapshotModel`, the `ISymbolModel` port, and
   its `CAlgoSymbolModel` adapter (the one Models/ file that references `cAlgo.API`).
 
 Rule of thumb: classes with no `using cAlgo.API` are pure and testable; keep them that way.

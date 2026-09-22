@@ -68,6 +68,7 @@ public class SignalDetector {
         signal.BarTime = _chartBars.OpenTimes[closedBarIndex];
         signal.Strong = strong;
         signal.Metrics = VwapStrongMetrics.Compute(strong, side);
+        signal.Departure = _departureTracker.CreateSnapshot();
         return new List<SignalModel> { signal };
     }
 

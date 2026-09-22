@@ -35,4 +35,7 @@ public class OrderPlanModel {
     public VwapFilterSettingsModel VwapFilters { get; set; }
 
     public TradeDirectionModeModel TradeDirectionMode { get; set; }
+
+    // 下单当时的 Departure 状态（V2 第 6 节）。闸门关着时只有阈值 0 有意义，状态列写空白。
+    public DepartureSnapshotModel Departure { get; set; }
 }
