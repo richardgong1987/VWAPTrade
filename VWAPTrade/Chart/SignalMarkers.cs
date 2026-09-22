@@ -5,7 +5,7 @@ using cAlgo.API;
 namespace cAlgo.Robots;
 
 public class SignalMarkers {
-    private const string Prefix = "PDH_PDL_SIGNAL_";
+    private const string Prefix = "VWAP_SIGNAL_";
 
     private const int IconOffsetTicks = 120;
     private const int TextOffsetTicks = 320;

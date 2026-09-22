@@ -66,8 +66,8 @@ public class VWAPTrade : Robot {
     public int DepartureMaxWaitBars { get; set; }
 
     // 只做「最终交易许可」，不影响任何指标计算：All 模式的成交结果与没有这个开关时完全一致。
-    [Parameter("交易方向", DefaultValue = TradeDirectionModeModel.All, Group = "交易方向")]
-    public TradeDirectionModeModel TradeDirectionMode { get; set; }
+    [Parameter("交易方向", DefaultValue = TradeDirectionPermissionModel.All, Group = "交易方向")]
+    public TradeDirectionPermissionModel TradeDirectionMode { get; set; }
 
     [Parameter("启动时清空交易记录CSV", DefaultValue = true, Group = "开发调试")]
     public bool ResetTradeLogOnStart { get; set; }
@@ -78,14 +78,15 @@ public class VWAPTrade : Robot {
     [Parameter("输出文件名", DefaultValue = "VWAPTrades.csv", Group = "开发调试")]
     public string FileName { get; set; }
 
+    // 只留 OnBar / OnTick 还要用到的那几件；其余零件在组装时用完即走。
+    private VwapSeries _vwapSeries;
     private SignalDetector _signalDetector;
     private DepartureTracker _departureTracker;
-    private SignalMarkers _signalMarkers;
-    private VwapSeries _vwapSeries;
-    private VwapSlim _vwapSlim;
     private OrderExecutor _orderExecutor;
-    private TradeCsvLogger _csvLogger;
+    private VwapLines _vwapLines;
+    private SignalMarkers _signalMarkers;
 
+    // 组合根：读参数 → 校验 → 分三路组装（找信号、下单、画图）。这里只做接线，不放任何规则。
     protected override void OnStart() {
         LaunchDebug();
 
@@ -105,6 +106,15 @@ public class VWAPTrade : Robot {
             vwapFilters, VwapSlopeLookbackBars, Atr14Source, TradeDirectionMode);
         PrintSettings(settings, departureSettings);
 
+        BuildSignalPipeline(settings, departureSettings);
+        BuildOrderPipeline(settings);
+        BuildChartDrawing();
+
+        Print("*****VWAP break and reverse started.");
+    }
+
+    // 找信号这一路：VWAP 序列 → 两套 ATR → Departure 状态机 → 信号识别。
+    private void BuildSignalPipeline(TradeSettingsModel settings, DepartureSettingsModel departureSettings) {
         _vwapSeries = new VwapSeries(Bars);
         _vwapSeries.Update();
 
@@ -113,25 +123,30 @@ public class VWAPTrade : Robot {
             new Atr14Series(Indicators, MarketData.GetBars(TimeFrame.Hour)));
 
         _departureTracker = new DepartureTracker(departureSettings);
-        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14, settings, _departureTracker);
-        _signalMarkers = new SignalMarkers(Chart, Symbol.TickSize);
-        _vwapSlim = new VwapSlim(Chart, _vwapSeries);
-        _vwapSlim.Draw();
-        // 画不出线时先看这一行：收线 K 线数为 0 就是还没历史数据，图形对象数为 0 就是这个周期不画（日线及以上）。
-        Print("*****VWAP lines | ClosedBars: {0}, ChartObjects: {1}, TimeFrame: {2}", _vwapSeries.Count, _vwapSlim.DrawnObjectCount,
-            Bars.TimeFrame);
+        var departureFeed = new DepartureFeed(Bars, _vwapSeries, atr14, settings.Atr14Source, _departureTracker);
+        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14, settings, departureFeed, _departureTracker);
+    }
 
-        _csvLogger = new TradeCsvLogger(ResetTradeLogOnStart, ResolveReportsDirectory(), FileName);
-        Print("****CSV logger path: {0}", _csvLogger.FilePath);
+    // 下单这一路：CSV 文件 → 定价定量 → 记账 → 保本止损 → 执行。
+    private void BuildOrderPipeline(TradeSettingsModel settings) {
+        var csvLogger = new TradeCsvLogger(new TradeCsvFile(ResetTradeLogOnStart, ResolveReportsDirectory(), FileName));
+        Print("****CSV logger path: {0}", csvLogger.FilePath);
 
-        var riskGuard = new RiskGuard();
         var symbolModel = new CAlgoSymbolModel(Symbol);
-        var planner = new OrderPlanner(symbolModel, riskGuard, settings);
-        var journal = new TradeJournal(this, _csvLogger, SymbolName, Bars.TimeFrame.ToString());
+        var planner = new OrderPlanner(symbolModel, settings);
+        var journal = new TradeJournal(this, csvLogger, SymbolName, Bars.TimeFrame.ToString());
         var breakeven = new BreakevenProtector(this, symbolModel, settings);
-        _orderExecutor = new OrderExecutor(this, SymbolName, OrderLabel.Trim(), planner, riskGuard, settings, journal, breakeven);
+        _orderExecutor = new OrderExecutor(this, SymbolName, OrderLabel.Trim(), planner, settings, journal, breakeven);
+    }
 
-        Print("*****VWAP break and reverse started.");
+    // 画图这一路：三条 VWAP 线 + 入场标记。要在 VWAP 序列建好之后。
+    private void BuildChartDrawing() {
+        _signalMarkers = new SignalMarkers(Chart, Symbol.TickSize);
+        _vwapLines = new VwapLines(Chart, _vwapSeries);
+        _vwapLines.Draw();
+        // 画不出线时先看这一行：收线 K 线数为 0 就是还没历史数据，图形对象数为 0 就是这个周期不画（日线及以上）。
+        Print("*****VWAP lines | ClosedBars: {0}, ChartObjects: {1}, TimeFrame: {2}", _vwapSeries.Count, _vwapLines.DrawnObjectCount,
+            Bars.TimeFrame);
     }
 
     // 风险% 留 0 就等于这个 cBot 不会下任何单，启动时说清楚，免得以为是信号没出。
@@ -163,7 +178,7 @@ public class VWAPTrade : Robot {
     }
 
     // 输出目录按运行模式分开、互不覆盖：回测目录由脚本每次清空重建，模拟/实盘目录只追加、从不删除。
-    // 回测经 run_conditions 传入绝对路径 FileName，此目录会被忽略（见 TradeCsvLogger）。
+    // 回测经 run_conditions 传入绝对路径 FileName，此目录会被忽略（见 TradeCsvFile）。
     private string ResolveReportsDirectory() {
         string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         return Path.Combine(documentsPath, ResolveReportsFolderName());
@@ -179,7 +194,7 @@ public class VWAPTrade : Robot {
     protected override void OnBar() {
         // 先补算新收线那根 K 线的 VWAP，画线和找信号都要用它。
         _vwapSeries?.Update();
-        _vwapSlim?.Draw();
+        _vwapLines?.Draw();
         HandleClosedBarSignal();
         _orderExecutor?.ManageOpenPositions();
     }
@@ -189,15 +204,15 @@ public class VWAPTrade : Robot {
         _orderExecutor?.ManageOpenPositions();
     }
 
-    // 一根 K 线可能同时命中当日与当周两条 VWAP，每一档各自下单、各自画标记。
     private void HandleClosedBarSignal() {
-        foreach (SignalModel signalModel in _signalDetector.DetectOnClosedBar()) {
-            if (_orderExecutor.ExecuteIfSignal(signalModel)) {
-                _signalMarkers.Draw(signalModel);
-                // 开完仓这一段「先离开」就用掉了：下一笔必须重新走一遍离开确认（V2 第 6.3 节）。
-                _departureTracker.ResetAfterEntry();
-            }
-        }
+        SignalModel signalModel = _signalDetector.DetectOnClosedBar();
+
+        if (signalModel == null || !_orderExecutor.ExecuteIfSignal(signalModel))
+            return;
+
+        _signalMarkers.Draw(signalModel);
+        // 开完仓这一段「先离开」就用掉了：下一笔必须重新走一遍离开确认（V2 第 6.3 节）。
+        _departureTracker.ResetAfterEntry();
     }
 
     protected override void OnStop() {

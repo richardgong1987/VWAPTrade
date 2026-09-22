@@ -1,7 +1,7 @@
 using cAlgo.Robots;
 using Xunit;
 
-namespace VWAPTrade.Tests.OrderLogger {
+namespace VWAPTrade.Tests.TradeLog {
     // The header and the migrator's target width come from the same place. These tests pin that
     // the schema is what the strategy notes ask for, and that every row the logger writes is as
     // wide as the header — a row one column short silently shifts every value after it.

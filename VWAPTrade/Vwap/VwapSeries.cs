@@ -5,7 +5,7 @@ using cAlgo.API;
 namespace cAlgo.Robots;
 
 // 全图的 VWAP 序列：读 K 线、按 VwapPeriod 切分日/周，把每根已收线 K 线的三个 VWAP 取值缓存下来。
-// 画线（VwapSlim）和找信号（SignalDetector）都从这里取值，累积口径只有这一份。
+// 画线（VwapLines）和找信号（SignalDetector）都从这里取值，累积口径只有这一份。
 //
 // 只算已经收线的 K 线：OnBar 触发时最后一根刚开盘、值还会变。调用方每根 K 线调一次 Update()，
 // 它只补算新收线的那几根，重复调用无副作用。

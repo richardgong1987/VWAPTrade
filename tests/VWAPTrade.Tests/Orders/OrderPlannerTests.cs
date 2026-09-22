@@ -185,7 +185,7 @@ namespace VWAPTrade.Tests.Orders {
                 PipValue = pipValue
             };
 
-            return new OrderPlanner(symbol, new RiskGuard(), TestSettings.NoStopOffset());
+            return new OrderPlanner(symbol, TestSettings.NoStopOffset());
         }
     }
 }

@@ -4,7 +4,7 @@ namespace cAlgo.Robots;
 public class TradeSettingsModel {
     public TradeSettingsModel(double riskPct, double takeProfitR, int stopOffsetTicks, double breakevenTriggerR,
         int breakevenOffsetTicks, VwapFilterSettingsModel vwapFilters, int vwapSlopeLookbackBars,
-        Atr14SourceModel atr14Source, TradeDirectionModeModel tradeDirectionMode) {
+        Atr14SourceModel atr14Source, TradeDirectionPermissionModel tradeDirectionMode) {
         RiskPct = riskPct;
         TakeProfitR = takeProfitR;
         StopOffsetTicks = stopOffsetTicks;
@@ -41,5 +41,5 @@ public class TradeSettingsModel {
     public Atr14SourceModel Atr14Source { get; }
 
     // 允许往哪个方向下单。只在下单前拦截，不影响任何指标计算。
-    public TradeDirectionModeModel TradeDirectionMode { get; }
+    public TradeDirectionPermissionModel TradeDirectionMode { get; }
 }

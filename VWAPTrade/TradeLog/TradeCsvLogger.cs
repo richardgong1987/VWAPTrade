@@ -1,37 +1,18 @@
 using System;
-using System.IO;
-using System.Text;
 using cAlgo.API;
-using cAlgo.API.Internals;
-
-// cAlgo.API 也有个 File 类型，会跟 System.IO.File 撞名。
-using IoFile = System.IO.File;
 
 namespace cAlgo.Robots;
 
-// 把每一笔的开仓与平仓各写一行进交易 CSV。列定义在 TradeCsvColumns，这里只管
-// 「文件在哪、什么时候写、一行里放哪些事实」。
+// 一笔交易写两行：开仓一行、平仓一行。这里只决定「一行里放哪些事实」——
+// 列定义在 TradeCsvColumns，文件本身（路径、表头、迁移、追加）在 TradeCsvFile。
 public class TradeCsvLogger {
-    private static readonly Encoding CsvEncoding = new UTF8Encoding(true);
+    private readonly TradeCsvFile _file;
 
-    private readonly string _filePath;
-
-    // resetOnStart: 用一份新表头覆盖整个文件，只保留本次运行。文件是固定名、只追加的，
-    // 不清空的话每跑一次回测就叠一份同样的交易。关掉它则跨运行累积。
-    //
-    // reportsDirectory: 按运行模式选定的输出目录（回测/模拟/实盘各一个，见组合根）。
-    // fileName 传绝对路径时（回测经 run_conditions 指定完整路径）直接采用、忽略 reportsDirectory。
-    public TradeCsvLogger(bool resetOnStart, string reportsDirectory, string fileName) {
-        _filePath = ResolveFilePath(reportsDirectory, fileName);
-        EnsureDirectoryExists(_filePath);
-
-        if (resetOnStart)
-            IoFile.WriteAllText(_filePath, TradeCsvColumns.Header + Environment.NewLine, CsvEncoding);
-        else
-            EnsureFileUpToDate();
+    public TradeCsvLogger(TradeCsvFile file) {
+        _file = file;
     }
 
-    public string FilePath => _filePath;
+    public string FilePath => _file.FilePath;
 
     public string AppendEntry(OrderPlanModel planModel, Position position, string symbolName, string timeFrame) {
         if (planModel == null || position == null)
@@ -101,33 +82,7 @@ public class TradeCsvLogger {
         if (record == null)
             return;
 
-        IoFile.AppendAllText(_filePath, TradeCsvColumns.ToCsvLine(record) + Environment.NewLine, CsvEncoding);
-    }
-
-    // ── 文件与表头 ───────────────────────────────────────────────────────────
-    private static string ResolveFilePath(string reportsDirectory, string fileName) {
-        return Path.IsPathRooted(fileName) ? fileName : Path.Combine(reportsDirectory, fileName);
-    }
-
-    private static void EnsureDirectoryExists(string filePath) {
-        string directory = Path.GetDirectoryName(filePath);
-
-        if (!string.IsNullOrEmpty(directory))
-            Directory.CreateDirectory(directory);
-    }
-
-    private void EnsureFileUpToDate() {
-        string[] lines = IoFile.Exists(_filePath) ? IoFile.ReadAllLines(_filePath) : Array.Empty<string>();
-
-        if (lines.Length == 0) {
-            IoFile.WriteAllText(_filePath, TradeCsvColumns.Header + Environment.NewLine, CsvEncoding);
-            return;
-        }
-
-        string[] upgraded = TradeCsvMigrator.Upgrade(lines, TradeCsvColumns.Header);
-
-        if (upgraded != null)
-            IoFile.WriteAllLines(_filePath, upgraded, CsvEncoding);
+        _file.AppendLine(TradeCsvColumns.ToCsvLine(record));
     }
 
     // ── 单行里的几个小判断 ───────────────────────────────────────────────────

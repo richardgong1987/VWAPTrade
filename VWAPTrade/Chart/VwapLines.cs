@@ -6,8 +6,8 @@ namespace cAlgo.Robots;
 
 // Draw the daily, weekly and previous-day VWAP from the shared closed-bar series.
 // Use source timestamps: chart and cBot bar indexes can differ during backtesting.
-public class VwapSlim {
-    private const string Prefix = "VWAP_SLIM_";
+public class VwapLines {
+    private const string Prefix = "VWAP_LINE_";
     private static readonly Color DailyColor = Color.FromArgb(255, 255, 235, 59);
     private static readonly Color WeeklyColor = Color.FromArgb(255, 156, 39, 176);
 
@@ -29,7 +29,7 @@ public class VwapSlim {
 
     private int _nextBarIndex;
 
-    public VwapSlim(Chart chart, VwapSeries series) {
+    public VwapLines(Chart chart, VwapSeries series) {
         _chart = chart;
         _series = series;
     }

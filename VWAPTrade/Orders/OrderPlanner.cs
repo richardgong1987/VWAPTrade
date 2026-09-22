@@ -3,19 +3,17 @@ using System;
 namespace cAlgo.Robots;
 
 // Turns a signal into a sized, validated order plan. Pure: it depends only on the
-// ISymbolModel port and RiskGuard, never on cAlgo, so it is unit tested.
+// ISymbolModel port, never on cAlgo, so it is unit tested.
 //
 // Sizing: volume = riskMoney / riskPrice, rounded to the nearest tradable step, so a
 // stop-out loses as close to the risk budget as the step allows. 风险预算与止盈倍数都来自
 // 信号命中的那一档价位（见 TradeLevelModel），每一档各用各的。
 public class OrderPlanner {
     private readonly ISymbolModel _symbolModel;
-    private readonly RiskGuard _riskGuard;
     private readonly TradeSettingsModel _settings;
 
-    public OrderPlanner(ISymbolModel symbolModel, RiskGuard riskGuard, TradeSettingsModel settings) {
+    public OrderPlanner(ISymbolModel symbolModel, TradeSettingsModel settings) {
         _symbolModel = symbolModel;
-        _riskGuard = riskGuard;
         _settings = settings;
     }
 
@@ -29,13 +27,13 @@ public class OrderPlanner {
             out double entry, out double stop, out double riskPrice, out double takeProfit);
         double stopLossPips = riskPrice / _symbolModel.PipSize;
 
-        if (_riskGuard.TryGetStopLossPipsRejectReason(stopLossPips, out string rejectReason)) {
+        if (TryGetStopLossRejectReason(stopLossPips, out string rejectReason)) {
             planModel.RejectReason = rejectReason;
             return planModel;
         }
 
         double takeProfitPips = Math.Abs(takeProfit - entry) / _symbolModel.PipSize;
-        double riskMoney = _riskGuard.CalculateRiskMoney(accountEquity, level.RiskPct);
+        double riskMoney = RiskBudget.Calculate(accountEquity, level.RiskPct);
 
         // Volume whose loss at the stop equals the risk budget, snapped to the nearest tradable
         // step. lossPerUnit uses PipValue (account-currency value of a pip), so the budget stays
@@ -73,6 +71,18 @@ public class OrderPlanner {
             riskPrice = stop - entry;
             takeProfit = entry - takeProfitR * riskPrice;
         }
+    }
+
+    // 下不了的单在这里全部拒掉，理由一句话写进 CSV。止损距离为 0 时仓位会除零，必须先挡住。
+    private static bool TryGetStopLossRejectReason(double stopLossPips, out string rejectReason) {
+        rejectReason = "";
+
+        if (stopLossPips <= 0.0) {
+            rejectReason = "Stop loss pips is not positive.";
+            return true;
+        }
+
+        return false;
     }
 
     private bool TryGetVolumeRejectReason(double volume, out string rejectReason) {

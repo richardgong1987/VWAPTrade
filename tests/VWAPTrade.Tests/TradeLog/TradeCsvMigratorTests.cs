@@ -1,7 +1,7 @@
 using cAlgo.Robots;
 using Xunit;
 
-namespace VWAPTrade.Tests.OrderLogger {
+namespace VWAPTrade.Tests.TradeLog {
     // The migrator upgrades a trades CSV written by an older build. Its two recognised shapes are
     // the 22-column layout (today's columns plus 「回撤开仓模式」at index 3 and 「挂单ID」at index 19)
     // and that layout trailed by indicator-state columns.

@@ -20,6 +20,10 @@ public class Atr14Pair {
 
     public double GetH1(DateTime time) => Read(_h1, time);
 
+    // 过滤器用哪一套当分母，由「ATR归一周期」参数决定。选择规则只有这一处。
+    public double GetSelected(DateTime time, Atr14SourceModel source) =>
+        source == Atr14SourceModel.ATR14_M5 ? GetM5(time) : GetH1(time);
+
     private static double Read(Atr14Series series, DateTime time) {
         return series != null && series.TryGetValue(time, out double atr) ? atr : double.NaN;
     }

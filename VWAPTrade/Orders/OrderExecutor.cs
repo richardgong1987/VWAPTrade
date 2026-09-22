@@ -5,7 +5,7 @@ namespace cAlgo.Robots;
 
 // 把一个信号变成一张真实订单。这里只做「放不放行、下不下单」：
 //
-//   风控时段 → 方向许可 → 该关键位是否已有持仓 → 定价定量 → 市价单 → 交给 TradeJournal 记账
+//   交易时段 → 方向许可 → 该关键位是否已有持仓 → 定价定量 → 市价单 → 交给 TradeJournal 记账
 //
 // 定价定量在 OrderPlanner，记账在 TradeJournal，持仓期间的保本止损在 BreakevenProtector。
 public class OrderExecutor {
@@ -19,18 +19,16 @@ public class OrderExecutor {
     private readonly string _strategyLabelPrefix;
 
     private readonly OrderPlanner _planner;
-    private readonly RiskGuard _riskGuard;
     private readonly TradeSettingsModel _settings;
     private readonly TradeJournal _journal;
     private readonly BreakevenProtector _breakeven;
 
-    public OrderExecutor(Robot robot, string symbolName, string orderLabel, OrderPlanner planner, RiskGuard riskGuard,
+    public OrderExecutor(Robot robot, string symbolName, string orderLabel, OrderPlanner planner,
         TradeSettingsModel settings, TradeJournal journal, BreakevenProtector breakeven) {
         _robot = robot;
         _symbolName = symbolName;
         _strategyLabelPrefix = orderLabel + "_";
         _planner = planner;
-        _riskGuard = riskGuard;
         _settings = settings;
         _journal = journal;
         _breakeven = breakeven;
@@ -50,8 +48,10 @@ public class OrderExecutor {
         if (signalModel?.Level == null)
             return false;
 
-        if (_riskGuard.ShouldBlockNewOrder(_robot.Server.Time)) {
-            _robot.Print("*****Order skipped | Risk guard blocked new order. Time: {0}", _robot.Server.Time);
+        // 只在交易时段里开新单（周二~周五 10:30~次日 06:00，见 TradingSession）。
+        // 已经持有的仓位不受影响，照常由止损/止盈了结。
+        if (!TradingSession.IsInSession(_robot.Server.Time)) {
+            _robot.Print("*****Order skipped | Outside the trading session. Time: {0}", _robot.Server.Time);
             return false;
         }
 

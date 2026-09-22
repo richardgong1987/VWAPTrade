@@ -50,7 +50,10 @@ clocks, deliberately decoupled:
 So at 10:30, when trading opens, the daily VWAP has already been accumulating for four and a half
 hours — it does not start from zero.
 
-`VWAPTrade.cs` is the Robot lifecycle shell that wires the pieces together (the composition root).
+`VWAPTrade.cs` is the Robot lifecycle shell and the composition root. `OnStart` reads the
+parameters, validates them, then wires three pipelines — `BuildSignalPipeline`,
+`BuildOrderPipeline`, `BuildChartDrawing`. It holds no rules of its own; anything resembling a
+decision belongs in one of the classes below.
 
 ## Module map
 
@@ -59,24 +62,26 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
 
 - `Vwap/` — `VwapPeriod` (when the VWAP resets), `TradingSession` (when orders may open — a
   different clock, see above), `VwapStrongMetrics` (the GapX / SlopeRawX / SlopeRateX30 formulas),
-  `VwapStack` (the gates), `DepartureTracker` (the leave-then-return state machine),
-  `StartupCheck` (parameter validation), `VwapCalculator` (pure accumulation) — all unit tested — and
-  `VwapSeries`, which reads `Bars` and caches one `VwapSampleModel` per closed bar. It is the
-  single source of VWAP values for drawing and signals.
-- `Indicators/` — `Atr14Series` (one timeframe's ATR14, Wilder) and `Atr14Pair` (the M5 + H1 pair).
-- `Signals/` — `SignalDetector` applies the direction gate, feeds every closed bar to
-  `DepartureTracker` (catching up over history on the first call, so results do not depend on how
-  much history the platform loaded), builds the daily-VWAP key level for the closed bar, and asks
-  `Biz/MainBiz` which candle pattern touches it.
-- `LineDrawer/` — `VwapSlim` draws the three VWAP lines, `SignalMarkers` the entry markers.
-- `Orders/` — `OrderPlanner` (pure sizing/geometry), `TradeDirectionGate` and `TradeResultR` (pure,
-  unit tested); `OrderExecutor` only decides whether to place an order and places it, delegating the
-  position bookkeeping to `TradeJournal` and the breakeven stop to `BreakevenProtector`.
-- `Risk/` — `RiskGuard` (trading-session window + stop-distance and risk-money rules, pure).
-- `OrderLogger/` — `TradeCsvColumns` is the single declarative table of CSV columns (name + how to
+  `VwapStack` (gates 1–4), `DepartureTracker` (gate 5, the leave-then-return state machine),
+  `StartupCheck` (parameter validation), `VwapCalculator` (pure accumulation) — all unit tested —
+  plus the two classes that read the platform and feed them: `VwapSeries`, which caches one
+  `VwapSampleModel` per closed bar and is the single source of VWAP values for drawing and
+  signals, and `DepartureFeed`, which hands each closed bar to `DepartureTracker`.
+- `Indicators/` — `Atr14Series` (one timeframe's ATR14, Wilder) and `Atr14Pair` (the M5 + H1 pair,
+  and the one place that knows which of the two `ATR归一周期` selects).
+- `Signals/` — `SignalDetector` runs the gates in order for the closed bar and returns one signal
+  or null; `LevelPatternMatcher` decides which candle pattern touches the key level;
+  `HanJinSignals26` is the pattern classifier itself (a port — see below).
+- `Chart/` — `VwapLines` draws the three VWAP lines, `SignalMarkers` the entry markers.
+- `Orders/` — `OrderPlanner` (pure sizing/geometry, and every reason an order is rejected),
+  `TradeDirectionGate` and `TradeResultR` (pure, unit tested); `OrderExecutor` only decides whether
+  to place an order and places it, delegating the position bookkeeping to `TradeJournal` and the
+  breakeven stop to `BreakevenProtector`.
+- `Risk/` — `RiskBudget`: how much account currency one trade may lose. Pure, unit tested.
+- `TradeLog/` — `TradeCsvColumns` is the single declarative table of CSV columns (name + how to
   read it), so the header and every row are generated from one list and cannot drift apart;
-  `TradeCsvLogger` decides what facts go in a row and when to write it; `TradeCsvMigrator` (pure,
-  unit tested) upgrades files written by older builds.
+  `TradeCsvLogger` decides what facts go in a row; `TradeCsvFile` owns the file itself (path,
+  header, append); `TradeCsvMigrator` (pure, unit tested) upgrades files written by older builds.
 - `Models/` — data types: `OrderPlanModel`, `SignalModel`, `TradeLevelModel`,
   `TradeSettingsModel`, `VwapSampleModel`, `TradeDirectionModel`, `DepartureSettingsModel`,
   `DepartureBarModel`, `DepartureSnapshotModel`, the `ISymbolModel` port, and
@@ -85,6 +90,17 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
 Rule of thumb: classes with no `using cAlgo.API` are pure and testable; keep them that way.
 `CAlgoSymbolModel` is the sole broker adapter — it is the only Models/ file that touches
 cAlgo, and it is never linked into the test project.
+
+Two conventions worth knowing before renaming things:
+
+- **Reader / rule pairs.** Where a rule needs market data, the reading and the rule are separate
+  classes: `VwapSeries`/`VwapCalculator` and `DepartureFeed`/`DepartureTracker`. The reader touches
+  `Bars`; the rule stays pure and unit tested. Keep new work in that shape.
+- **`SignalSideModel` (None/Buy/Sell) and `TradeDirectionModel` (Long/Short) are deliberately
+  separate.** The first is what a bar suggests, and may be None; the second is a side an order is
+  actually sent with, and cannot be. Merging them would push `None` into the order layer.
+- `HanJinSignals26` keeps its name because it *is* a faithful port of that Pine library
+  (`docs/design/hanjin-signals-26.md`); it changes when the original does.
 
 ## Build & run
 

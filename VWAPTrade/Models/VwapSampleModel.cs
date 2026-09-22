@@ -2,7 +2,7 @@ using System;
 
 namespace cAlgo.Robots;
 
-// 一根 K 线上的三个 VWAP 取值，由 VwapCalculator 算出、交给 VwapSlim 画。纯数据，不依赖 cAlgo。
+// 一根 K 线上的三个 VWAP 取值，由 VwapCalculator 算出、交给 VwapLines 画。纯数据，不依赖 cAlgo。
 public class VwapSampleModel {
     // Preserve the source bar timestamp for chart coordinates.
     public DateTime OpenTime { get; set; }

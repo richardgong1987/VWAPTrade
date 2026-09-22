@@ -1,7 +1,7 @@
 using cAlgo.Robots;
 using Xunit;
 
-namespace VWAPTrade.Tests.OrderLogger {
+namespace VWAPTrade.Tests.TradeLog {
     // The indicator snapshot taken at entry is what both the entry row and the close row report.
     // TradeCsvLogger needs a cTrader Position, so this covers the part that can be built without
     // one: the plan carries the snapshot, and the schema has a column for every value in it.

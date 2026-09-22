@@ -1,11 +1,11 @@
 using cAlgo.Robots;
 using Xunit;
 
-namespace VWAPTrade.Tests.Biz {
+namespace VWAPTrade.Tests.Signals {
     // The key level is the daily VWAP — the yellow line on the chart. A candle pattern only becomes
     // a signal when it actually touches that line, and only the candles that form the pattern count:
     // pinbar one, engulfing two, fractal and harami three.
-    public class MainBizVwapTouchTests {
+    public class LevelPatternMatcherTests {
         // Bearish pinbar spanning 99.5 to 110: upper wick 9.8 of a 10.5 range, lower wick 0.5.
         private static CandleModel BearishPinbar() => new(open: 100.0, high: 110.0, low: 99.5, close: 100.2);
 
@@ -14,7 +14,7 @@ namespace VWAPTrade.Tests.Biz {
 
         [Fact]
         public void a_pattern_sitting_on_the_daily_vwap_becomes_a_signal() {
-            SignalModel signal = MainBiz.Evaluate(BearishPinbar(), Filler(), Filler(), ShortLevel(dailyVwap: 105.0));
+            SignalModel signal = LevelPatternMatcher.Match(BearishPinbar(), Filler(), Filler(), ShortLevel(dailyVwap: 105.0));
 
             Assert.NotNull(signal);
             Assert.Equal("S_Pin_1", signal.Label);
@@ -24,7 +24,7 @@ namespace VWAPTrade.Tests.Biz {
         [Fact]
         public void the_same_pattern_away_from_the_daily_vwap_is_ignored() {
             // Identical candle, but the line is above its high, so price never reached the level.
-            SignalModel signal = MainBiz.Evaluate(BearishPinbar(), Filler(), Filler(), ShortLevel(dailyVwap: 120.0));
+            SignalModel signal = LevelPatternMatcher.Match(BearishPinbar(), Filler(), Filler(), ShortLevel(dailyVwap: 120.0));
 
             Assert.Null(signal);
         }
@@ -33,7 +33,7 @@ namespace VWAPTrade.Tests.Biz {
         [InlineData(99.5)] // the low exactly touches the line
         [InlineData(110.0)] // the high exactly touches the line
         public void touching_the_line_with_a_wick_is_enough(double dailyVwap) {
-            Assert.NotNull(MainBiz.Evaluate(BearishPinbar(), Filler(), Filler(), ShortLevel(dailyVwap)));
+            Assert.NotNull(LevelPatternMatcher.Match(BearishPinbar(), Filler(), Filler(), ShortLevel(dailyVwap)));
         }
 
         [Fact]
@@ -42,7 +42,7 @@ namespace VWAPTrade.Tests.Biz {
             // Here the previous candle straddles the line and the pinbar does not.
             CandleModel previousOnTheLine = new(open: 69.0, high: 75.0, low: 65.0, close: 70.0);
 
-            SignalModel signal = MainBiz.Evaluate(BearishPinbar(), previousOnTheLine, Filler(), ShortLevel(dailyVwap: 70.0));
+            SignalModel signal = LevelPatternMatcher.Match(BearishPinbar(), previousOnTheLine, Filler(), ShortLevel(dailyVwap: 70.0));
 
             Assert.Null(signal);
         }
@@ -54,7 +54,7 @@ namespace VWAPTrade.Tests.Biz {
             CandleModel previous = new(open: 101.0, high: 105.0, low: 100.0, close: 100.5);
             CandleModel current = new(open: 106.0, high: 106.0, low: 99.0, close: 99.5);
 
-            SignalModel signal = MainBiz.Evaluate(current, previous, Filler(), ShortLevel(dailyVwap: 104.0));
+            SignalModel signal = LevelPatternMatcher.Match(current, previous, Filler(), ShortLevel(dailyVwap: 104.0));
 
             Assert.NotNull(signal);
             Assert.Equal("S_Eng_1", signal.Label);
@@ -64,7 +64,7 @@ namespace VWAPTrade.Tests.Biz {
         public void a_level_with_no_risk_budget_produces_nothing() {
             TradeLevelModel unusable = new("VWAP", SignalSideModel.Sell, price: 105.0, riskPct: 0.0, takeProfitR: 2.0);
 
-            Assert.Null(MainBiz.Evaluate(BearishPinbar(), Filler(), Filler(), unusable));
+            Assert.Null(LevelPatternMatcher.Match(BearishPinbar(), Filler(), Filler(), unusable));
         }
 
         [Fact]
@@ -72,7 +72,7 @@ namespace VWAPTrade.Tests.Biz {
             // Side comes from the VWAP stack gate; a long-only bar never matches a bearish pattern.
             TradeLevelModel longOnly = new("VWAP", SignalSideModel.Buy, price: 105.0, riskPct: 1.0, takeProfitR: 2.0);
 
-            Assert.Null(MainBiz.Evaluate(BearishPinbar(), Filler(), Filler(), longOnly));
+            Assert.Null(LevelPatternMatcher.Match(BearishPinbar(), Filler(), Filler(), longOnly));
         }
 
         private static TradeLevelModel ShortLevel(double dailyVwap) =>

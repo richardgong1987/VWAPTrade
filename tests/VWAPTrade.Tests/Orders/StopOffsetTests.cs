@@ -59,7 +59,7 @@ namespace VWAPTrade.Tests.Orders {
                 PipValue = 0.1
             };
 
-            return new OrderPlanner(symbol, new RiskGuard(), TestSettings.WithStopOffsetTicks(stopOffsetTicks));
+            return new OrderPlanner(symbol, TestSettings.WithStopOffsetTicks(stopOffsetTicks));
         }
     }
 }

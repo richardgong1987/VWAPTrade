@@ -86,7 +86,7 @@ namespace VWAPTrade.Tests.Orders {
         }
 
         private static OrderPlanner CreatePlanner(FakeSymbolModel symbol) =>
-            new(symbol, new RiskGuard(), TestSettings.NoStopOffset());
+            new(symbol, TestSettings.NoStopOffset());
 
         private static FakeSymbolModel Xauusd(double pipValuePerUnit) {
             return new FakeSymbolModel {
