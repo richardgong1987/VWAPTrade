@@ -59,7 +59,22 @@ namespace VWAPTrade.Tests.Vwap {
             Observe(tracker, barCount: 2, close: 102.0);
             Assert.False(tracker.IsAllowed(SignalSideModel.Buy));
 
-            Observe(tracker, barCount: 1, close: 102.0);
+            Observe(tracker, barCount: 1, close: 102.0); // confirms, but cannot trade itself
+            Observe(tracker, barCount: 1, close: 101.0);
+            Assert.True(tracker.IsAllowed(SignalSideModel.Buy));
+        }
+
+        [Fact]
+        public void the_confirming_bar_cannot_also_be_the_entry_bar() {
+            // Leaving and coming back are two events in time. The bar that completes the
+            // confirmation is still away from the line, so it can never be the return —
+            // not even when it touches the daily VWAP and prints a pattern.
+            DepartureTracker tracker = Tracker(confirmBars: 3);
+
+            Observe(tracker, barCount: 3, close: 102.0);
+            Assert.False(tracker.IsAllowed(SignalSideModel.Buy));
+
+            Observe(tracker, barCount: 1, close: 100.1);
             Assert.True(tracker.IsAllowed(SignalSideModel.Buy));
         }
 
@@ -90,8 +105,9 @@ namespace VWAPTrade.Tests.Vwap {
         public void a_long_departure_does_not_license_a_short_signal() {
             DepartureTracker tracker = Tracker(confirmBars: 3);
 
-            Observe(tracker, barCount: 3, close: 102.0);
+            Observe(tracker, barCount: 4, close: 102.0); // departed and past the confirming bar
 
+            Assert.True(tracker.IsAllowed(SignalSideModel.Buy));
             Assert.False(tracker.IsAllowed(SignalSideModel.Sell));
             Assert.False(tracker.IsAllowed(SignalSideModel.None));
         }
@@ -100,7 +116,7 @@ namespace VWAPTrade.Tests.Vwap {
         public void the_short_side_measures_the_distance_below_the_daily_vwap() {
             DepartureTracker tracker = Tracker(confirmBars: 3);
 
-            Observe(tracker, barCount: 3, close: 98.0, weekly: WeeklyForShort);
+            Observe(tracker, barCount: 4, close: 98.0, weekly: WeeklyForShort);
 
             Assert.True(tracker.IsAllowed(SignalSideModel.Sell));
             Assert.False(tracker.IsAllowed(SignalSideModel.Buy));
@@ -171,7 +187,7 @@ namespace VWAPTrade.Tests.Vwap {
             Observe(tracker, barCount: 2, close: 100.1); // expires on the second one
             Assert.False(tracker.IsAllowed(SignalSideModel.Buy));
 
-            Observe(tracker, barCount: 3, close: 102.0);
+            Observe(tracker, barCount: 4, close: 102.0);
             Assert.True(tracker.IsAllowed(SignalSideModel.Buy));
         }
 
@@ -266,8 +282,25 @@ namespace VWAPTrade.Tests.Vwap {
             DepartureTracker tracker = Tracker(min: 1.0, confirmBars: 2);
 
             Observe(tracker, barCount: 2, close: 101.0); // exactly 1.0 ATR away
+            Observe(tracker, barCount: 1, close: 100.2);
 
             Assert.True(tracker.IsAllowed(SignalSideModel.Buy));
+        }
+
+        [Fact]
+        public void a_single_bar_wait_limit_still_leaves_one_bar_to_trade() {
+            // MaxWaitBars = 1 is now the tightest useful setting: the confirming bar is barred and
+            // the next one is both the first allowed bar and the last before the departure lapses.
+            DepartureTracker tracker = Tracker(confirmBars: 3, maxWaitBars: 1);
+
+            Observe(tracker, barCount: 3, close: 102.0);
+            Assert.False(tracker.IsAllowed(SignalSideModel.Buy));
+
+            Observe(tracker, barCount: 1, close: 100.1);
+            Assert.True(tracker.IsAllowed(SignalSideModel.Buy));
+
+            Observe(tracker, barCount: 1, close: 100.1);
+            Assert.False(tracker.IsAllowed(SignalSideModel.Buy));
         }
     }
 }

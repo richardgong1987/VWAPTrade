@@ -79,12 +79,19 @@ public class DepartureTracker {
         };
     }
 
-    // The last gate before the pattern check: the signal must run with the departed structure.
+    // The last gate before the pattern check: the signal must run with the departed structure,
+    // and it must be a later bar than the one that confirmed the departure.
+    //
+    // "Leave, then come back" is two events in time, so they cannot share a bar. The bar that
+    // completes the confirmation is by definition still away from the daily VWAP; letting it also
+    // count as the return would admit a single bar that stretches from the departure right back
+    // to the line — exactly the trade this gate exists to reject. Hence BarsSinceConfirmed ≥ 1:
+    // 0 is the confirming bar itself, 1 is the first bar that may trade the pullback.
     public bool IsAllowed(SignalSideModel side) {
         if (!IsEnabled)
             return true;
 
-        return _departed && side != SignalSideModel.None && side == _structureSide;
+        return _departed && _barsSinceConfirmed >= 1 && side != SignalSideModel.None && side == _structureSide;
     }
 
     // After a fill the next trade must earn its own departure (section 6.3).

@@ -18,7 +18,9 @@ per-trade risk budget. Three gates, in order (`Vwap/VwapStack.cs`):
 5. **Departure** — `Vwap/DepartureTracker.cs`, from `docs/VWAP_Strong_V2.pdf` §6: the price must
    first genuinely leave the daily VWAP before a pattern touching that line may be traded.
    `DepartureX = direction × (close − daily) / ATR ≥ DepartureMin` on `DepartureConfirmBars`
-   consecutive closes, then it locks — the pullback it is waiting for must not undo it. Cleared by
+   consecutive closes, then it locks — the pullback it is waiting for must not undo it. The
+   confirming bar itself may never be the entry bar (`BarsSinceConfirmed ≥ 1`): leaving and coming
+   back are two events in time, and that bar is by definition still away from the line. Cleared by
    an entry, a new daily period, the structure flipping or failing, or `DepartureMaxWaitBars`
    running out. Its structure direction comes from `daily vs weekly` alone, never from the close,
    because the pullback pushes the close back through the daily VWAP.
