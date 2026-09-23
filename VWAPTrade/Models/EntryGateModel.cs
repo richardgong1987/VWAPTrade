@@ -10,6 +10,7 @@ public enum EntryGateModel {
     GapMin, // GapX_Selected below GapMin
     SlopeRateMin, // SlopeRateX_Selected below SlopeRateMin
     GapChange, // GapChangeRateX30_Selected outside [Min, Max]
+    LongBelowDailyVwap, // too many preceding closes below the daily VWAP for a long
     Departure, // price has not yet left the daily VWAP and come back
 
     // Order gates, checked by OrderExecutor.

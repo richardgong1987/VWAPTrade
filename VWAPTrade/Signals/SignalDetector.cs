@@ -8,7 +8,8 @@ namespace cAlgo.Robots;
 // candle pattern for that side touching the daily VWAP (LevelPatternMatcher) is a signal, and it
 // comes back with the first signal filter it fails (FailedFilter):
 //
-//   distance/speed/gap change (VwapStack) → leave first, then pull back (DepartureTracker)
+//   distance/speed/gap change (VwapStack) → recent closes below daily VWAP (long only)
+//   → leave first, then pull back (DepartureTracker)
 //
 // Whether it trades is OrderExecutor's call. This class only reads data and orders the filters;
 // the rules live in their own classes.
@@ -26,15 +27,17 @@ public class SignalDetector {
     private readonly TradeSettingsModel _settings;
     private readonly DepartureFeed _departureFeed;
     private readonly DepartureTracker _departureTracker;
+    private readonly LongBelowDailyVwapFeed _longBelowDailyVwapFeed;
 
     public SignalDetector(Bars chartBars, VwapSeries vwapSeries, Atr14Pair atr14, TradeSettingsModel settings,
-        DepartureFeed departureFeed, DepartureTracker departureTracker) {
+        DepartureFeed departureFeed, DepartureTracker departureTracker, LongBelowDailyVwapFeed longBelowDailyVwapFeed) {
         _chartBars = chartBars;
         _vwapSeries = vwapSeries;
         _atr14 = atr14;
         _settings = settings;
         _departureFeed = departureFeed;
         _departureTracker = departureTracker;
+        _longBelowDailyVwapFeed = longBelowDailyVwapFeed;
     }
 
     // Null when the bar is not Strong, or no pattern for the Strong side touches the daily VWAP.
@@ -78,14 +81,23 @@ public class SignalDetector {
         signal.Strong = strong;
         signal.Metrics = VwapStrongMetrics.Compute(strong, side);
         signal.Departure = _departureTracker.CreateSnapshot();
-        signal.FailedFilter = FindFailedFilter(signal.Metrics, side);
+        var precedingBars = side == SignalSideModel.Buy && _settings.LongBelowDailyVwap.IsEnabled
+            ? _longBelowDailyVwapFeed.ReadBefore(closedBarIndex, _settings.LongBelowDailyVwap.LookbackBars)
+            : null;
+        signal.LongBelowDailyVwap = LongBelowDailyVwapGate.Evaluate(side, _settings.LongBelowDailyVwap,
+            precedingBars);
+        signal.FailedFilter = FindFailedFilter(signal.Metrics, side, signal.LongBelowDailyVwap);
     }
 
-    private EntryGateModel FindFailedFilter(VwapStrongMetricsModel metrics, SignalSideModel side) {
+    private EntryGateModel FindFailedFilter(VwapStrongMetricsModel metrics, SignalSideModel side,
+        LongBelowDailyVwapSnapshotModel longBelowDailyVwap) {
         EntryGateModel vwapFilter = VwapStack.FindFailedFilter(metrics, _settings.VwapFilters);
 
         if (vwapFilter != EntryGateModel.None)
             return vwapFilter;
+
+        if (longBelowDailyVwap?.IsBlocked == true)
+            return EntryGateModel.LongBelowDailyVwap;
 
         // Leave first, then pull back: a pattern on the daily VWAP that never left it is not a
         // V2 trade. Off when DepartureMin = 0, and then this line changes nothing.

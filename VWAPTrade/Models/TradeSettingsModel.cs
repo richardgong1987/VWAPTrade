@@ -4,7 +4,8 @@ namespace cAlgo.Robots;
 public class TradeSettingsModel {
     public TradeSettingsModel(double riskPct, double takeProfitR, int stopOffsetTicks, double breakevenTriggerR,
         int breakevenOffsetTicks, VwapFilterSettingsModel vwapFilters, int vwapSlopeLookbackBars,
-        Atr14SourceModel atr14Source, TradeDirectionPermissionModel tradeDirectionMode) {
+        Atr14SourceModel atr14Source, TradeDirectionPermissionModel tradeDirectionMode,
+        LongBelowDailyVwapSettingsModel longBelowDailyVwap) {
         RiskPct = riskPct;
         TakeProfitR = takeProfitR;
         StopOffsetTicks = stopOffsetTicks;
@@ -14,6 +15,7 @@ public class TradeSettingsModel {
         VwapSlopeLookbackBars = vwapSlopeLookbackBars;
         Atr14Source = atr14Source;
         TradeDirectionMode = tradeDirectionMode;
+        LongBelowDailyVwap = longBelowDailyVwap;
     }
 
     // 单笔可亏的账户权益百分比。
@@ -42,4 +44,7 @@ public class TradeSettingsModel {
 
     // 允许往哪个方向下单。只在下单前拦截，不影响任何指标计算。
     public TradeDirectionPermissionModel TradeDirectionMode { get; }
+
+    // The long recovery setting affects longs only; a block count of 0 turns it off completely.
+    public LongBelowDailyVwapSettingsModel LongBelowDailyVwap { get; }
 }

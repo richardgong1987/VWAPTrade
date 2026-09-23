@@ -53,7 +53,13 @@ public static class StrongSignalCsvColumns {
         new("GapChangeRateMin", r => CsvCell.Number(r.Settings.VwapFilters.GapChangeRateMin)),
         new("GapChangeRateMax", r => CsvCell.Number(r.Settings.VwapFilters.GapChangeRateMax)),
 
-        // ── Filter 5: Departure ──────────────────────────────────────────────
+        // ── Filter 5: previous closes below the daily VWAP (long only) ────────
+        new("LongBelowDailyVwapLookbackBars", r => Whole(r.Settings.LongBelowDailyVwap?.LookbackBars)),
+        new("LongBelowDailyVwapBlockCount", r => Whole(r.Settings.LongBelowDailyVwap?.BlockCount)),
+        new("LongBelowDailyVwapCheckedBars", r => Whole(EnabledLongBelowDailyVwap(r)?.CheckedBars)),
+        new("LongBelowDailyVwapBelowCount", r => Whole(EnabledLongBelowDailyVwap(r)?.BelowCount)),
+
+        // ── Filter 6: Departure ──────────────────────────────────────────────
         // With the gate off the tracker never runs, so its counters would read 0 and look like a
         // real state. They are left blank then; DepartureMin = 0 says the gate was off.
         new("DepartureMin", r => CsvCell.Number(r.Signal.Departure?.Settings?.DepartureMin)),
@@ -79,6 +85,7 @@ public static class StrongSignalCsvColumns {
             EntryGateModel.GapMin => "间距不足",
             EntryGateModel.SlopeRateMin => "速度不足",
             EntryGateModel.GapChange => "扩口变化超出区间",
+            EntryGateModel.LongBelowDailyVwap => "做多前黄线下K线过多",
             EntryGateModel.Departure => "未完成离开确认",
             EntryGateModel.Session => "不在开仓时段",
             EntryGateModel.Direction => "交易方向不允许",
@@ -92,6 +99,11 @@ public static class StrongSignalCsvColumns {
     private static DepartureSnapshotModel EnabledDeparture(StrongSignalRecordModel record) {
         DepartureSnapshotModel departure = record.Signal.Departure;
         return departure != null && departure.IsEnabled ? departure : null;
+    }
+
+    private static LongBelowDailyVwapSnapshotModel EnabledLongBelowDailyVwap(StrongSignalRecordModel record) {
+        LongBelowDailyVwapSnapshotModel snapshot = record.Signal.LongBelowDailyVwap;
+        return snapshot != null && snapshot.Settings != null && snapshot.Settings.IsEnabled ? snapshot : null;
     }
 
     private static string Whole(int? value) {

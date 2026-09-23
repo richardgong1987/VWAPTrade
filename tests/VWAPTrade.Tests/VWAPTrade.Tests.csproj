@@ -30,6 +30,7 @@
     <Compile Include="..\..\VWAPTrade\TradeLog\StrongSignalCsvColumns.cs" Link="TradeLog\StrongSignalCsvColumns.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapCalculator.cs" Link="Vwap\VwapCalculator.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapStack.cs" Link="Vwap\VwapStack.cs" />
+    <Compile Include="..\..\VWAPTrade\Vwap\LongBelowDailyVwapGate.cs" Link="Vwap\LongBelowDailyVwapGate.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\DepartureTracker.cs" Link="Vwap\DepartureTracker.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\StartupCheck.cs" Link="Vwap\StartupCheck.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapStrongMetrics.cs" Link="Vwap\VwapStrongMetrics.cs" />
@@ -55,6 +56,9 @@
     <Compile Include="..\..\VWAPTrade\Models\TradeDirectionPermissionModel.cs" Link="Models\TradeDirectionPermissionModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\VwapFilterSettingsModel.cs" Link="Models\VwapFilterSettingsModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\DepartureSettingsModel.cs" Link="Models\DepartureSettingsModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\LongBelowDailyVwapSettingsModel.cs" Link="Models\LongBelowDailyVwapSettingsModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\LongBelowDailyVwapSnapshotModel.cs" Link="Models\LongBelowDailyVwapSnapshotModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\RecentDailyVwapBarModel.cs" Link="Models\RecentDailyVwapBarModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\DepartureBarModel.cs" Link="Models\DepartureBarModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\DepartureSnapshotModel.cs" Link="Models\DepartureSnapshotModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\CandleModel.cs" Link="Models\CandleModel.cs" />

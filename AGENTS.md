@@ -18,8 +18,9 @@ Once per closed bar:
 2. **Signal?** A candle pattern for that side touches the daily VWAP (the yellow line):
    `LevelPatternMatcher` with `HanJinSignals26`.
 3. **Signal filters**, in order: gap (`GapMin`), speed (`SlopeRateMin`), gap change (optional
-   range), Departure (price left the daily VWAP and came back). The first one that fails is
-   recorded as `SignalModel.FailedFilter`.
+   range), long recovery (configured preceding same-day closes below daily VWAP block a long),
+   Departure (price left the daily VWAP and came back). The first one that fails is recorded as
+   `SignalModel.FailedFilter`.
 4. **Order gates**, in order: order window (Tue–Fri 10:30 → 06:00), trade direction, open
    position on this level, sizing (`OrderPlanner`), broker. `OrderExecutor.TryEnter` returns an
    `EntryOutcomeModel`: ordered, or the first gate that stopped it.
@@ -45,6 +46,9 @@ Breaking one of these changes trading results silently, so treat them as fixed:
   bar accumulates. Orders follow a different clock (`TradingSession`). Don't merge them.
 - **Departure's direction comes from daily vs weekly only**, never from the close: the pullback it
   waits for pushes the close back through the daily VWAP.
+- **Long recovery counts closes, not lows.** Every valid long pattern touches the daily VWAP, so
+  counting a wick would reject the setup simply because it touched the level. Its signal bar is
+  excluded, and the lookback never crosses the 06:00 daily-VWAP reset.
 - **Touching counts only the candles the pattern uses:** pinbar 1, engulfing 2, fractal and
   harami 3.
 - **Harami** (`current [0]`, `previous [1]`, `earlier [2]`): `earlier` strictly contains `previous`
@@ -61,7 +65,7 @@ The layers are already right; keep them and don't add more.
 | Folder | Holds |
 | --- | --- |
 | `VWAPTrade.cs` | Robot lifecycle and wiring only: parameters, `OnStart` builds three pipelines, the per-bar flow above. No rules. |
-| `Vwap/` | VWAP accumulation and periods, order window, `VwapStack`, `VwapStrongMetrics`, `DepartureTracker`, `StartupCheck`, plus the readers `VwapSeries` and `DepartureFeed`. |
+| `Vwap/` | VWAP accumulation and periods, order window, `VwapStack`, `VwapStrongMetrics`, `LongBelowDailyVwapGate`, `DepartureTracker`, `StartupCheck`, plus the readers `VwapSeries`, `LongBelowDailyVwapFeed` and `DepartureFeed`. |
 | `Indicators/` | ATR14 on M5 and H1. |
 | `Signals/` | `SignalDetector` (reads the bar, finds the signal), `LevelPatternMatcher`, `HanJinSignals26`. |
 | `Orders/` | `OrderPlanner` (pure sizing), `OrderExecutor` (gates + placing), `TradeJournal`, `BreakevenProtector`, `TradeDirectionGate`, `TradeResultR`. |
@@ -75,7 +79,8 @@ Conventions:
 - **Pure by default.** A class without `using cAlgo.API` is pure and unit tested; keep new rules
   that way. `CAlgoSymbolModel` is the only `Models/` file that touches cAlgo.
 - **Reader / rule pairs.** When a rule needs market data, one class reads `Bars` and another holds
-  the rule: `VwapSeries`/`VwapCalculator`, `DepartureFeed`/`DepartureTracker`.
+  the rule: `VwapSeries`/`VwapCalculator`, `LongBelowDailyVwapFeed`/`LongBelowDailyVwapGate`,
+  `DepartureFeed`/`DepartureTracker`.
 - **Keep separate types separate:**
   - `SignalModel` says what the bar showed; `EntryOutcomeModel` says what became of it.
   - `SignalSideModel` (None/Buy/Sell) is what a bar suggests; `TradeDirectionModel` (Long/Short)

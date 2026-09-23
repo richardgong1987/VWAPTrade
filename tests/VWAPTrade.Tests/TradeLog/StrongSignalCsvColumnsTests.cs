@@ -59,6 +59,11 @@ namespace VWAPTrade.Tests.TradeLog {
         }
 
         [Fact]
+        public void the_long_below_daily_vwap_gate_has_a_clear_debug_name() {
+            Assert.Equal("做多前黄线下K线过多", StrongSignalCsvColumns.DescribeGate(EntryGateModel.LongBelowDailyVwap));
+        }
+
+        [Fact]
         public void a_traded_signal_is_recorded_with_its_position_and_no_gate() {
             string line = Line(ShortEngulfing(), EntryOutcomeModel.Ordered(12345));
 
