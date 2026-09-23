@@ -30,6 +30,9 @@ public class SignalModel {
     // Departure 状态机在这根 K 线上的状态，同样带进 CSV。
     public DepartureSnapshotModel Departure { get; set; }
 
+    // The long recovery count travels with the signal to debug.csv.
+    public LongBelowDailyVwapSnapshotModel LongBelowDailyVwap { get; set; }
+
     public int BarIndex { get; set; }
 
     public DateTime BarTime { get; set; }

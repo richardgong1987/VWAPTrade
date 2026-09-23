@@ -11,7 +11,8 @@ namespace VWAPTrade.Tests {
         public static TradeSettingsModel Create(double riskPct = 1.0, double takeProfitR = 2.0, int stopOffsetTicks = 0) =>
             new(riskPct, takeProfitR, stopOffsetTicks, breakevenTriggerR: 0.0, breakevenOffsetTicks: 0,
                 vwapFilters: NoFilters(), vwapSlopeLookbackBars: 6, atr14Source: Atr14SourceModel.ATR14_H1,
-                tradeDirectionMode: TradeDirectionPermissionModel.All);
+                tradeDirectionMode: TradeDirectionPermissionModel.All,
+                longBelowDailyVwap: new LongBelowDailyVwapSettingsModel(lookbackBars: 6, blockCount: 0));
 
         // 全部过滤关闭：被测的几何与仓位计算不该被闸门影响。
         public static VwapFilterSettingsModel NoFilters() =>
