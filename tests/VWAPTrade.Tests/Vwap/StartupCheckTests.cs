@@ -10,14 +10,14 @@ namespace VWAPTrade.Tests.Vwap {
         private static DepartureSettingsModel Departure(double min = 0.0, int confirmBars = 3, int maxWaitBars = 0) =>
             new(departureMin: min, confirmBars: confirmBars, maxWaitBars: maxWaitBars);
 
-        private static LongBelowDailyVwapSettingsModel LongBelowDailyVwap(int lookbackBars = 6, int blockCount = 0) =>
+        private static OppositeDailyVwapSettingsModel OppositeDailyVwap(int lookbackBars = 6, int blockCount = 0) =>
             new(lookbackBars, blockCount);
 
         private static string Check(bool isM5 = true, string label = "VWAPTrade-label", int lookbackN = 6,
             VwapFilterSettingsModel filters = null, DepartureSettingsModel departure = null,
-            LongBelowDailyVwapSettingsModel longBelowDailyVwap = null) =>
+            OppositeDailyVwapSettingsModel oppositeDailyVwap = null) =>
             StartupCheck.FindError(isM5, "m5", label, lookbackN, filters ?? Filters(), departure ?? Departure(),
-                longBelowDailyVwap ?? LongBelowDailyVwap());
+                oppositeDailyVwap ?? OppositeDailyVwap());
 
         [Fact]
         public void a_correct_setup_reports_nothing() {
@@ -76,13 +76,13 @@ namespace VWAPTrade.Tests.Vwap {
         }
 
         [Fact]
-        public void a_long_below_daily_vwap_count_above_the_lookback_is_refused() {
-            Assert.Contains("不能大于回看K线数", Check(longBelowDailyVwap: LongBelowDailyVwap(lookbackBars: 2, blockCount: 3)));
+        public void an_opposite_side_count_above_the_lookback_is_refused() {
+            Assert.Contains("不能大于回看K线数", Check(oppositeDailyVwap: OppositeDailyVwap(lookbackBars: 2, blockCount: 3)));
         }
 
         [Fact]
-        public void disabled_long_below_daily_vwap_values_are_ignored() {
-            Assert.Null(Check(longBelowDailyVwap: LongBelowDailyVwap(lookbackBars: 0, blockCount: 0)));
+        public void disabled_opposite_side_values_are_ignored() {
+            Assert.Null(Check(oppositeDailyVwap: OppositeDailyVwap(lookbackBars: 0, blockCount: 0)));
         }
 
         [Fact]

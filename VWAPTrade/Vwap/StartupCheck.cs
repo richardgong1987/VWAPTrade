@@ -6,7 +6,7 @@ namespace cAlgo.Robots;
 // 那比直接停下来糟糕得多。纯判断，没有 cAlgo 依赖。
 public static class StartupCheck {
     public static string FindError(bool isFiveMinuteChart, string timeFrameName, string orderLabel, int lookbackN,
-        VwapFilterSettingsModel filters, DepartureSettingsModel departure, LongBelowDailyVwapSettingsModel longBelowDailyVwap) {
+        VwapFilterSettingsModel filters, DepartureSettingsModel departure, OppositeDailyVwapSettingsModel oppositeDailyVwap) {
         // 标签为空的话，这个品种上每一个 "_L"/"_S" 结尾的单子都会被当成本 cBot 的单。
         if (string.IsNullOrWhiteSpace(orderLabel))
             return "订单标签不能为空。";
@@ -31,17 +31,17 @@ public static class StartupCheck {
                 return $"离开后最大等待K线数不能为负：当前是 {departure.MaxWaitBars}。0 表示不限制。";
         }
 
-        if (longBelowDailyVwap != null) {
-            if (longBelowDailyVwap.BlockCount < 0)
-                return $"黄线下K线阻断根数不能为负：当前是 {longBelowDailyVwap.BlockCount}。0 表示关闭。";
+        if (oppositeDailyVwap != null) {
+            if (oppositeDailyVwap.BlockCount < 0)
+                return $"反向侧K线阻断根数不能为负：当前是 {oppositeDailyVwap.BlockCount}。0 表示关闭。";
 
             // When off, its lookback does not participate, matching the other 0 = off filters.
-            if (longBelowDailyVwap.IsEnabled) {
-                if (longBelowDailyVwap.LookbackBars < 1)
-                    return $"做多前回看K线数必须 ≥ 1：当前是 {longBelowDailyVwap.LookbackBars}。";
+            if (oppositeDailyVwap.IsEnabled) {
+                if (oppositeDailyVwap.LookbackBars < 1)
+                    return $"信号前回看K线数必须 ≥ 1：当前是 {oppositeDailyVwap.LookbackBars}。";
 
-                if (longBelowDailyVwap.BlockCount > longBelowDailyVwap.LookbackBars)
-                    return $"黄线下K线阻断根数 {longBelowDailyVwap.BlockCount} 不能大于回看K线数 {longBelowDailyVwap.LookbackBars}。";
+                if (oppositeDailyVwap.BlockCount > oppositeDailyVwap.LookbackBars)
+                    return $"反向侧K线阻断根数 {oppositeDailyVwap.BlockCount} 不能大于回看K线数 {oppositeDailyVwap.LookbackBars}。";
             }
         }
 
