@@ -6,8 +6,8 @@ namespace cAlgo.Robots;
 // ISymbolModel port, never on cAlgo, so it is unit tested.
 //
 // Sizing: volume = riskMoney / riskPrice, rounded to the nearest tradable step, so a
-// stop-out loses as close to the risk budget as the step allows. 风险预算与止盈倍数都来自
-// 信号命中的那一档价位（见 TradeLevelModel），每一档各用各的。
+// stop-out loses as close to the risk budget as the step allows. RiskPct and TakeProfitR come
+// from the settings.
 public class OrderPlanner {
     private readonly ISymbolModel _symbolModel;
     private readonly TradeSettingsModel _settings;
@@ -18,12 +18,11 @@ public class OrderPlanner {
     }
 
     public OrderPlanModel CreatePlan(SignalModel signalModel, double accountEquity) {
-        OrderPlanModel planModel = new();
-        TradeLevelModel level = signalModel.Level;
+        OrderPlanModel planModel = new() { Signal = signalModel, Settings = _settings };
 
         TradeDirectionModel directionModel =
-            level.Side == SignalSideModel.Buy ? TradeDirectionModel.Long : TradeDirectionModel.Short;
-        FillGeometry(signalModel, directionModel, level.TakeProfitR, _symbolModel.TickSize * _settings.StopOffsetTicks,
+            signalModel.Level.Side == SignalSideModel.Buy ? TradeDirectionModel.Long : TradeDirectionModel.Short;
+        FillGeometry(signalModel, directionModel, _settings.TakeProfitR, _symbolModel.TickSize * _settings.StopOffsetTicks,
             out double entry, out double stop, out double riskPrice, out double takeProfit);
         double stopLossPips = riskPrice / _symbolModel.PipSize;
 
@@ -33,7 +32,7 @@ public class OrderPlanner {
         }
 
         double takeProfitPips = Math.Abs(takeProfit - entry) / _symbolModel.PipSize;
-        double riskMoney = RiskBudget.Calculate(accountEquity, level.RiskPct);
+        double riskMoney = RiskBudget.Calculate(accountEquity, _settings.RiskPct);
 
         // Volume whose loss at the stop equals the risk budget, snapped to the nearest tradable
         // step. lossPerUnit uses PipValue (account-currency value of a pip), so the budget stays

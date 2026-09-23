@@ -11,7 +11,6 @@ public class VWAPTrade : Robot {
     [Parameter("订单标签", DefaultValue = "VWAPTrade-label")]
     public string OrderLabel { get; set; }
 
-
     [Parameter("风险%", DefaultValue = 1, MinValue = 0)]
     public double RiskPct { get; set; }
 
@@ -78,7 +77,6 @@ public class VWAPTrade : Robot {
     // 只留 OnBar / OnTick 还要用到的那几件；其余零件在组装时用完即走。
     private VwapSeries _vwapSeries;
     private SignalDetector _signalDetector;
-    private DepartureTracker _departureTracker;
     private OrderExecutor _orderExecutor;
     private StrongSignalCsvLogger _strongSignalLog;
     private VwapLines _vwapLines;
@@ -119,9 +117,9 @@ public class VWAPTrade : Robot {
         var atr14 = new Atr14Pair(new Atr14Series(Indicators, MarketData.GetBars(TimeFrame.Minute5)),
             new Atr14Series(Indicators, MarketData.GetBars(TimeFrame.Hour)));
 
-        _departureTracker = new DepartureTracker(departureSettings);
-        var departureFeed = new DepartureFeed(Bars, _vwapSeries, atr14, settings.Atr14Source, _departureTracker);
-        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14, settings, departureFeed, _departureTracker);
+        var departureTracker = new DepartureTracker(departureSettings);
+        var departureFeed = new DepartureFeed(Bars, _vwapSeries, atr14, settings.Atr14Source, departureTracker);
+        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14, settings, departureFeed, departureTracker);
     }
 
     // 下单这一路：CSV 文件 → 定价定量 → 记账 → 保本止损 → 执行。
@@ -148,6 +146,50 @@ public class VWAPTrade : Robot {
         // 画不出线时先看这一行：收线 K 线数为 0 就是还没历史数据，图形对象数为 0 就是这个周期不画（日线及以上）。
         Print("*****VWAP lines | ClosedBars: {0}, ChartObjects: {1}, TimeFrame: {2}", _vwapSeries.Count, _vwapLines.DrawnObjectCount,
             Bars.TimeFrame);
+    }
+
+    protected override void OnBar() {
+        // 先补算新收线那根 K 线的 VWAP，画线和找信号都要用它。
+        _vwapSeries?.Update();
+        _vwapLines?.Draw();
+        HandleClosedBarSignal();
+        _orderExecutor?.ManageOpenPositions();
+    }
+
+    // 保本止损要盯的是盘中价格，不能只在收线时检查，否则一根 K 线里冲到触发价又回落就错过了。
+    protected override void OnTick() {
+        _orderExecutor?.ManageOpenPositions();
+    }
+
+    protected override void OnStop() {
+        Print("*****cBot stopped.*******************");
+    }
+
+    // Per closed bar: find the signal, try to trade it, then show what happened on the chart and in debug.csv.
+    private void HandleClosedBarSignal() {
+        SignalModel signalModel = _signalDetector.DetectOnClosedBar();
+
+        if (signalModel == null)
+            return;
+
+        EntryOutcomeModel outcome = _orderExecutor.TryEnter(signalModel);
+
+        if (outcome.IsOrdered) {
+            _signalMarkers.Draw(signalModel);
+            _signalDetector.ResetAfterEntry();
+        }
+
+        LogStrongSignal(signalModel, outcome);
+    }
+
+    // Runs after the order, and a file error only prints: debug.csv must never cost a trade or
+    // stop the bot (for example while the file is open in another program).
+    private void LogStrongSignal(SignalModel signalModel, EntryOutcomeModel outcome) {
+        try {
+            _strongSignalLog.Append(signalModel, outcome, Server.Time);
+        } catch (IOException exception) {
+            Print("*****Debug CSV not written: {0}", exception.Message);
+        }
     }
 
     // 风险% 留 0 就等于这个 cBot 不会下任何单，启动时说清楚，免得以为是信号没出。
@@ -190,48 +232,4 @@ public class VWAPTrade : Robot {
 
         return Account.IsLive ? "release_trading_reports" : "simulate_trading_reports";
     }
-
-    protected override void OnBar() {
-        // 先补算新收线那根 K 线的 VWAP，画线和找信号都要用它。
-        _vwapSeries?.Update();
-        _vwapLines?.Draw();
-        HandleClosedBarSignal();
-        _orderExecutor?.ManageOpenPositions();
-    }
-
-    // 保本止损要盯的是盘中价格，不能只在收线时检查，否则一根 K 线里冲到触发价又回落就错过了。
-    protected override void OnTick() {
-        _orderExecutor?.ManageOpenPositions();
-    }
-
-    private void HandleClosedBarSignal() {
-        SignalModel signalModel = _signalDetector.DetectOnClosedBar();
-
-        if (signalModel == null)
-            return;
-
-        if (signalModel.BlockedBy == EntryGateModel.None && _orderExecutor.ExecuteIfSignal(signalModel)) {
-            _signalMarkers.Draw(signalModel);
-            // 开完仓这一段「先离开」就用掉了：下一笔必须重新走一遍离开确认（V2 第 6.3 节）。
-            _departureTracker.ResetAfterEntry();
-        }
-
-        LogStrongSignal(signalModel);
-    }
-
-    // Runs after the order, and a file error only prints: debug.csv must never cost a trade or
-    // stop the bot (for example while the file is open in another program).
-    private void LogStrongSignal(SignalModel signalModel) {
-        try {
-            _strongSignalLog.Append(signalModel, Server.Time);
-        } catch (IOException exception) {
-            Print("*****Debug CSV not written: {0}", exception.Message);
-        }
-    }
-
-    protected override void OnStop() {
-        Print("*****cBot stopped.*******************");
-    }
-
-    protected override void OnBarClosed() { }
 }

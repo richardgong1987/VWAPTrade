@@ -11,9 +11,6 @@ namespace cAlgo.Robots;
 // 纯判断，没有 cAlgo 依赖，有单元测试。
 public static class LevelPatternMatcher {
     public static SignalModel Match(CandleModel current, CandleModel previous, CandleModel earlier, TradeLevelModel level) {
-        if (level == null || !level.IsConfigured)
-            return null;
-
         HanJinSignalScanModel patterns = HanJinSignals26.Scan(current, previous, earlier);
 
         return level.Side == SignalSideModel.Sell

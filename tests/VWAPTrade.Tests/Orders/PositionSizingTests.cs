@@ -23,13 +23,12 @@ namespace VWAPTrade.Tests.Orders {
 
         [Fact]
         public void xauusd_snaps_to_the_nearest_unit_step_even_when_that_overshoots_the_budget() {
-            OrderPlanner planner = CreatePlanner(Xauusd(pipValuePerUnit: 0.01));
+            OrderPlanner planner = CreatePlanner(Xauusd(pipValuePerUnit: 0.01), riskPct: 2.0);
 
             // riskMoney = 25000 × 2% = 500 USD. Stop 2358.00 − 2350.50 = 7.5 USD = 750 pips.
             // One unit loses 7.5 USD, so 500 / 7.5 = 66.67 units -> nearest step is 67 = 0.67 lot.
             // 67 units lose 502.50 at the stop; 66 would lose 495 and leave more budget unused.
-            OrderPlanModel plan = planner.CreatePlan(TestSignal.Short(entry: 2350.50, stopLoss: 2358.00, riskPct: 2.0),
-                accountEquity: 25000.0);
+            OrderPlanModel plan = planner.CreatePlan(TestSignal.Short(entry: 2350.50, stopLoss: 2358.00), accountEquity: 25000.0);
 
             Assert.True(plan.IsValid, plan.RejectReason);
             Assert.Equal(67.0, plan.VolumeInUnits, precision: 6);
@@ -85,8 +84,8 @@ namespace VWAPTrade.Tests.Orders {
             Assert.Equal(101.2, plan.EstimatedRiskMoney, precision: 6);
         }
 
-        private static OrderPlanner CreatePlanner(FakeSymbolModel symbol) =>
-            new(symbol, TestSettings.NoStopOffset());
+        private static OrderPlanner CreatePlanner(FakeSymbolModel symbol, double riskPct = 1.0) =>
+            new(symbol, TestSettings.Create(riskPct));
 
         private static FakeSymbolModel Xauusd(double pipValuePerUnit) {
             return new FakeSymbolModel {

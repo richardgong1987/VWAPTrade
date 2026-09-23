@@ -55,7 +55,7 @@ public class TradeRecordModel {
 
     public double ResultR { get; set; } = double.NaN;
 
-    // 开仓时的下单方案：VWAP 读数、算出的指标、当时生效的过滤设置与方向许可都在里面。
-    // 平仓行复用同一个对象，所以两行的指标列逐字相同。
+    // The entry's order plan. Through it the columns reach the entry signal's VWAP readings and the
+    // settings in force; the close row reuses the same object, so both rows report the same values.
     public OrderPlanModel EntryPlan { get; set; }
 }

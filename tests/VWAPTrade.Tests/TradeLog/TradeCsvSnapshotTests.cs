@@ -4,24 +4,24 @@ using Xunit;
 namespace VWAPTrade.Tests.TradeLog {
     // The indicator snapshot taken at entry is what both the entry row and the close row report.
     // TradeCsvLogger needs a cTrader Position, so this covers the part that can be built without
-    // one: the plan carries the snapshot, and the schema has a column for every value in it.
+    // one: a row reads the entry signal and settings through its plan, and the schema has a column
+    // for every value in them.
     public class TradeCsvSnapshotTests {
         [Fact]
-        public void the_plan_carries_the_reading_and_the_metrics_unchanged() {
+        public void a_row_reports_the_entry_signals_readings_and_the_settings_in_force() {
             VwapStrongReadingModel reading = new() {
                 Close = 106.0, DailyVwap = 104.0, WeeklyVwap = 100.0, DailyVwapBefore = 102.0, WeeklyVwapBefore = 99.0,
                 Atr14M5 = 2.0, Atr14H1 = 8.0, LookbackN = 6, SelectedAtrPeriod = Atr14SourceModel.ATR14_H1
             };
-            VwapStrongMetricsModel metrics = VwapStrongMetrics.Compute(reading, SignalSideModel.Buy);
+            SignalModel signal = new() { Strong = reading, Metrics = VwapStrongMetrics.Compute(reading, SignalSideModel.Buy) };
+            TradeRecordModel record = new() { EntryPlan = new OrderPlanModel { Signal = signal, Settings = TestSettings.Create() } };
 
-            SignalModel signal = new() { Strong = reading, Metrics = metrics };
-            OrderPlanModel plan = new() { VwapReading = signal.Strong, VwapMetrics = signal.Metrics };
+            string[] cells = TradeCsvColumns.ToCsvLine(record).Split(',');
 
-            // Same objects, so a close row written minutes later reports the entry's values.
-            Assert.Same(reading, plan.VwapReading);
-            Assert.Same(metrics, plan.VwapMetrics);
-            Assert.Equal(8.0, plan.VwapReading.SelectedAtr, precision: 9);
-            Assert.Equal(6, plan.VwapReading.LookbackN);
+            Assert.Equal("8", Cell(cells, "ATR14"));
+            Assert.Equal("0.5", Cell(cells, "GapX_Selected"));
+            Assert.Equal("6", Cell(cells, "LookbackN"));
+            Assert.Equal("All", Cell(cells, "TradeDirectionMode"));
         }
 
         [Fact]
@@ -131,7 +131,7 @@ namespace VWAPTrade.Tests.TradeLog {
             };
 
         private static string[] Row(DepartureSnapshotModel departure) {
-            TradeRecordModel record = new() { EntryPlan = new OrderPlanModel { Departure = departure } };
+            TradeRecordModel record = new() { EntryPlan = new OrderPlanModel { Signal = new SignalModel { Departure = departure } } };
 
             return TradeCsvColumns.ToCsvLine(record).Split(',');
         }

@@ -37,11 +37,10 @@ namespace VWAPTrade.Tests.Orders {
         }
 
         [Fact]
-        public void places_the_short_take_profit_at_the_levels_r_multiple_below_entry() {
-            OrderPlanner planner = CreatePlanner();
+        public void places_the_short_take_profit_at_the_r_multiple_below_entry() {
+            OrderPlanner planner = CreatePlanner(takeProfitR: 3.0);
 
-            OrderPlanModel plan = planner.CreatePlan(TestSignal.Short(entry: 100.0, stopLoss: 102.0, takeProfitR: 3.0),
-                accountEquity: 10000.0);
+            OrderPlanModel plan = planner.CreatePlan(TestSignal.Short(entry: 100.0, stopLoss: 102.0), accountEquity: 10000.0);
 
             Assert.True(plan.IsValid, plan.RejectReason);
             // Risk distance is 2.0, so 3R of take profit sits 6.0 below the entry.
@@ -51,11 +50,10 @@ namespace VWAPTrade.Tests.Orders {
         }
 
         [Fact]
-        public void places_the_long_take_profit_at_the_levels_r_multiple_above_entry() {
-            OrderPlanner planner = CreatePlanner();
+        public void places_the_long_take_profit_at_the_r_multiple_above_entry() {
+            OrderPlanner planner = CreatePlanner(takeProfitR: 3.0);
 
-            OrderPlanModel plan = planner.CreatePlan(TestSignal.Long(entry: 100.0, stopLoss: 98.0, takeProfitR: 3.0),
-                accountEquity: 10000.0);
+            OrderPlanModel plan = planner.CreatePlan(TestSignal.Long(entry: 100.0, stopLoss: 98.0), accountEquity: 10000.0);
 
             Assert.True(plan.IsValid, plan.RejectReason);
             Assert.Equal(106.0, plan.TakeProfitPrice, precision: 6);
@@ -63,15 +61,27 @@ namespace VWAPTrade.Tests.Orders {
         }
 
         [Fact]
-        public void budgets_risk_from_the_hit_levels_own_risk_percentage() {
-            OrderPlanner planner = CreatePlanner();
+        public void budgets_risk_from_the_risk_percentage_setting() {
+            OrderPlanner planner = CreatePlanner(riskPct: 2.0);
 
-            OrderPlanModel plan = planner.CreatePlan(TestSignal.Short(entry: 100.0, stopLoss: 102.0, riskPct: 2.0),
-                accountEquity: 10000.0);
+            OrderPlanModel plan = planner.CreatePlan(TestSignal.Short(entry: 100.0, stopLoss: 102.0), accountEquity: 10000.0);
 
             Assert.True(plan.IsValid, plan.RejectReason);
             Assert.Equal(200.0, plan.RiskMoney, precision: 6);
             Assert.Equal(100.0, plan.VolumeInUnits, precision: 6);
+        }
+
+        [Fact]
+        public void the_plan_keeps_the_signal_and_settings_it_was_made_from() {
+            // The trade CSV reads the entry's VWAP readings through these, for the close row too.
+            TradeSettingsModel settings = TestSettings.Create();
+            OrderPlanner planner = new(new FakeSymbolModel { PipSize = 0.1, LotSize = 100.0, PipValue = 0.1 }, settings);
+            SignalModel signal = TestSignal.Short(entry: 100.0, stopLoss: 102.0);
+
+            OrderPlanModel plan = planner.CreatePlan(signal, accountEquity: 10000.0);
+
+            Assert.Same(signal, plan.Signal);
+            Assert.Same(settings, plan.Settings);
         }
 
         [Fact]
@@ -135,11 +145,11 @@ namespace VWAPTrade.Tests.Orders {
         [Theory]
         [InlineData(0.0)]
         [InlineData(-1.0)]
-        public void rejects_when_the_level_has_no_risk_budget(double riskPct) {
-            OrderPlanner planner = CreatePlanner();
+        public void rejects_when_there_is_no_risk_budget(double riskPct) {
+            OrderPlanner planner = CreatePlanner(riskPct: riskPct);
 
             // No risk budget sizes to zero volume, which the broker minimum then rejects.
-            OrderPlanModel plan = planner.CreatePlan(TestSignal.Short(entry: 100.0, stopLoss: 102.0, riskPct), accountEquity: 10000.0);
+            OrderPlanModel plan = planner.CreatePlan(TestSignal.Short(entry: 100.0, stopLoss: 102.0), accountEquity: 10000.0);
 
             Assert.False(plan.IsValid);
             Assert.Contains("below broker minimum", plan.RejectReason);
@@ -176,7 +186,7 @@ namespace VWAPTrade.Tests.Orders {
         }
 
         private static OrderPlanner CreatePlanner(double pipValue = 0.1, double volumeInUnitsMin = 1.0,
-            double volumeInUnitsMax = 1_000_000.0) {
+            double volumeInUnitsMax = 1_000_000.0, double riskPct = 1.0, double takeProfitR = 2.0) {
             FakeSymbolModel symbol = new() {
                 PipSize = 0.1,
                 LotSize = 100.0,
@@ -185,7 +195,7 @@ namespace VWAPTrade.Tests.Orders {
                 PipValue = pipValue
             };
 
-            return new OrderPlanner(symbol, TestSettings.NoStopOffset());
+            return new OrderPlanner(symbol, TestSettings.Create(riskPct, takeProfitR));
         }
     }
 }

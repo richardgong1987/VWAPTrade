@@ -20,8 +20,8 @@ public class TradeCsvLogger {
 
         var record = new TradeRecordModel {
             Id = position.Id.ToString(),
-            KeyLevel = planModel.KeyLevel,
-            Signal = planModel.SignalName,
+            KeyLevel = planModel.Signal.Level.Name,
+            Signal = planModel.Signal.Label,
             Comment = "ENTRY",
             Symbol = symbolName,
             TimeFrame = timeFrame,

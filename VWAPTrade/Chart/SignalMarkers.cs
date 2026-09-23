@@ -1,9 +1,9 @@
-using System;
-using System.Collections.Generic;
 using cAlgo.API;
 
 namespace cAlgo.Robots;
 
+// The entry marker for a traded signal: a triangle plus the signal name, below a long's low and
+// above a short's high.
 public class SignalMarkers {
     private const string Prefix = "VWAP_SIGNAL_";
 
@@ -14,7 +14,6 @@ public class SignalMarkers {
     private readonly Chart _chart;
     private readonly double _iconOffset;
     private readonly double _textOffset;
-    private readonly HashSet<string> _objectNames = new();
 
     public SignalMarkers(Chart chart, double tickSize) {
         _chart = chart;
@@ -23,81 +22,23 @@ public class SignalMarkers {
     }
 
     public void Draw(SignalModel signalModel) {
-        if (signalModel?.Level == null)
-            return;
+        bool isLong = signalModel.Level.Side == SignalSideModel.Buy;
+        string side = isLong ? "LONG" : "SHORT";
+        string key = $"{signalModel.BarTime:yyyyMMdd_HHmmss}_{signalModel.Level.Name}";
+        Color color = isLong ? Color.Lime : Color.Red;
 
-        if (signalModel.Level.Side == SignalSideModel.Buy)
-            DrawLong(signalModel);
-        else
-            DrawShort(signalModel);
-    }
+        // Markers step away from the bar: down from a long's low, up from a short's high.
+        double anchor = isLong ? signalModel.Low : signalModel.High;
+        double away = isLong ? -1.0 : 1.0;
 
-    public void Clear() {
-        foreach (string name in _objectNames) {
-            _chart.RemoveObject(name);
-        }
+        _chart.DrawIcon($"{Prefix}{side}_ICON_{key}", isLong ? ChartIconType.UpTriangle : ChartIconType.DownTriangle,
+            signalModel.BarIndex, anchor + away * _iconOffset, color);
 
-        _objectNames.Clear();
-    }
-
-    private void DrawLong(SignalModel signalModel) {
-        string key = GetKey(signalModel);
-
-        double iconPrice = signalModel.Low - _iconOffset;
-        double textPrice = signalModel.Low - _textOffset;
-
-        string iconName = $"{Prefix}LONG_ICON_{key}";
-        string textName = $"{Prefix}LONG_TEXT_{key}";
-
-        RemoveExisting(iconName);
-        RemoveExisting(textName);
-
-        _chart.DrawIcon(iconName, ChartIconType.UpTriangle, signalModel.BarIndex, iconPrice, Color.Lime);
-
-        ChartText text = _chart.DrawText(textName, signalModel.Label, signalModel.BarIndex, textPrice, Color.Lime);
-
-        ApplyTextStyle(text);
-
-        _objectNames.Add(iconName);
-        _objectNames.Add(textName);
-    }
-
-    private void DrawShort(SignalModel signalModel) {
-        string key = GetKey(signalModel);
-
-        double iconPrice = signalModel.High + _iconOffset;
-        double textPrice = signalModel.High + _textOffset;
-
-        string iconName = $"{Prefix}SHORT_ICON_{key}";
-        string textName = $"{Prefix}SHORT_TEXT_{key}";
-
-        RemoveExisting(iconName);
-        RemoveExisting(textName);
-
-        _chart.DrawIcon(iconName, ChartIconType.DownTriangle, signalModel.BarIndex, iconPrice, Color.Red);
-
-        ChartText text = _chart.DrawText(textName, signalModel.Label, signalModel.BarIndex, textPrice, Color.Red);
-
-        ApplyTextStyle(text);
-
-        _objectNames.Add(iconName);
-        _objectNames.Add(textName);
-    }
-
-    private static void ApplyTextStyle(ChartText text) {
+        ChartText text = _chart.DrawText($"{Prefix}{side}_TEXT_{key}", signalModel.Label, signalModel.BarIndex,
+            anchor + away * _textOffset, color);
         text.FontSize = TextFontSize;
         text.IsBold = false;
         text.HorizontalAlignment = HorizontalAlignment.Center;
         text.VerticalAlignment = VerticalAlignment.Center;
-    }
-
-    private void RemoveExisting(string name) {
-        _chart.RemoveObject(name);
-        _objectNames.Remove(name);
-    }
-
-    // 一根 K 线可能同时命中几档，所以 key 要带上档位名，否则几个标记会互相覆盖。
-    private static string GetKey(SignalModel signalModel) {
-        return $"{signalModel.BarTime:yyyyMMdd_HHmmss}_{signalModel.Level.Name}";
     }
 }

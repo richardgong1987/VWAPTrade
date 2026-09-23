@@ -52,8 +52,10 @@ hours — it does not start from zero.
 
 `VWAPTrade.cs` is the Robot lifecycle shell and the composition root. `OnStart` reads the
 parameters, validates them, then wires three pipelines — `BuildSignalPipeline`,
-`BuildOrderPipeline`, `BuildChartDrawing`. It holds no rules of its own; anything resembling a
-decision belongs in one of the classes below.
+`BuildOrderPipeline`, `BuildChartDrawing`. Per closed bar it runs one short flow:
+`SignalDetector.DetectOnClosedBar` → `OrderExecutor.TryEnter` → marker + Departure reset when
+ordered → one `debug.csv` row. It holds no rules of its own; anything resembling a decision
+belongs in one of the classes below.
 
 ## Module map
 
@@ -62,7 +64,8 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
 
 - `Vwap/` — `VwapPeriod` (when the VWAP resets), `TradingSession` (when orders may open — a
   different clock, see above), `VwapStrongMetrics` (the GapX / SlopeRawX / SlopeRateX30 formulas),
-  `VwapStack` (gates 1–4), `DepartureTracker` (gate 5, the leave-then-return state machine),
+  `VwapStack` (gate 1 `ResolveSide` = Strong or not; gates 2–4 `FindFailedFilter`),
+  `DepartureTracker` (gate 5, the leave-then-return state machine),
   `StartupCheck` (parameter validation), `VwapCalculator` (pure accumulation) — all unit tested —
   plus the two classes that read the platform and feed them: `VwapSeries`, which caches one
   `VwapSampleModel` per closed bar and is the single source of VWAP values for drawing and
@@ -71,26 +74,29 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
   and the one place that knows which of the two `ATR归一周期` selects).
 - `Signals/` — `SignalDetector` returns the closed bar's signal or null. A signal needs a Strong
   bar (the stack alone, `VwapStack.ResolveSide(close, daily, weekly)`, returns Buy or Sell) and a
-  pattern for that side touching the daily VWAP. It comes back marked with the first of the
-  remaining gates that blocks it (`BlockedBy`, an `EntryGateModel`); only `None` may trade, and
-  `OrderExecutor` fills in the order gates. `LevelPatternMatcher` decides which candle pattern touches the key level;
-  `HanJinSignals26` is the pattern classifier itself (a port — see below).
+  pattern for that side touching the daily VWAP. It carries the first signal filter it fails
+  (`FailedFilter`: gap, speed, gap change, Departure). `LevelPatternMatcher` decides which candle
+  pattern touches the key level; `HanJinSignals26` is the pattern classifier itself (a port — see below).
 - `Chart/` — `VwapLines` draws the three VWAP lines, `SignalMarkers` the entry markers.
 - `Orders/` — `OrderPlanner` (pure sizing/geometry, and every reason an order is rejected),
-  `TradeDirectionGate` and `TradeResultR` (pure, unit tested); `OrderExecutor` only decides whether
-  to place an order and places it, delegating the position bookkeeping to `TradeJournal` and the
-  breakeven stop to `BreakevenProtector`.
+  `TradeDirectionGate` and `TradeResultR` (pure, unit tested); `OrderExecutor.TryEnter` checks the
+  signal's filter result and the order gates, places the order, and returns an
+  `EntryOutcomeModel` (ordered, or the first gate that stopped it). It delegates the position
+  bookkeeping to `TradeJournal` and the breakeven stop to `BreakevenProtector`.
 - `Risk/` — `RiskBudget`: how much account currency one trade may lose. Pure, unit tested.
 - `TradeLog/` — `TradeCsvColumns` is the single declarative table of CSV columns (name + how to
   read it), so the header and every row are generated from one list and cannot drift apart;
   `TradeCsvLogger` decides what facts go in a row; `TradeCsvFile` owns the file itself (path,
   header, append); `TradeCsvMigrator` (pure, unit tested) upgrades files written by older builds.
-  `StrongSignalCsvLogger` (pure, unit tested) writes `debug.csv` next to the trade CSV: one row
-  per Strong signal, traded or not, with the gate that stopped it and the position ID when it
-  traded. It is a separate file with no migration. `CsvCell` is the cell formatting both files share.
-- `Models/` — data types: `OrderPlanModel`, `SignalModel`, `TradeLevelModel`,
-  `TradeSettingsModel`, `VwapSampleModel`, `TradeDirectionModel`, `DepartureSettingsModel`,
-  `DepartureBarModel`, `DepartureSnapshotModel`, `EntryGateModel`, the `ISymbolModel` port, and
+  `debug.csv` sits next to the trade CSV: one row per Strong signal, traded or not, with the gate
+  that stopped it and the position ID when it traded. Same split: `StrongSignalCsvColumns` is the
+  column table, `StrongSignalCsvLogger` owns the file (no migration: a changed header starts it
+  over). Both pure, unit tested. `CsvCell` is the cell formatting both CSVs share.
+- `Models/` — data types: `SignalModel` (what the bar showed), `EntryOutcomeModel` (what became of
+  it), `OrderPlanModel` (sizing, plus references to the signal and settings it was made from),
+  `TradeLevelModel`, `TradeSettingsModel`, `VwapSampleModel`, `TradeDirectionModel`,
+  `DepartureSettingsModel`, `DepartureBarModel`, `DepartureSnapshotModel`, `EntryGateModel`,
+  `TradeRecordModel` and `StrongSignalRecordModel` (one CSV row each), the `ISymbolModel` port, and
   its `CAlgoSymbolModel` adapter (the one Models/ file that references `cAlgo.API`).
 
 Rule of thumb: classes with no `using cAlgo.API` are pure and testable; keep them that way.
@@ -156,8 +162,9 @@ User-tunable inputs are `public` properties decorated with `[Parameter(...)]`; t
 in the cTrader UI and the optimizer. Trading actions and market data come from inherited
 members (`ExecuteMarketOrder`, `Positions`, `Symbol`, `Bars`, `MarketSeries`, `Print`, etc.).
 
-`[Robot(AccessRights = AccessRights.None)]` means the bot cannot touch the file system or
-network — keep it that way unless a feature genuinely requires elevated access.
+The bot runs with `[Robot(AccessRights = AccessRights.FullAccess)]` because it writes the trade
+CSV and `debug.csv` under `~/Documents`. Don't add network access or other file access on the
+strength of it.
 
 ## Conventions
 

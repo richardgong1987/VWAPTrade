@@ -6,13 +6,12 @@ namespace cAlgo.Robots;
 // Asked once per closed bar. The bar is Strong when the stack alone points one way
 // (VwapStack.ResolveSide on close / daily / weekly returns Buy or Sell). A Strong bar with a
 // candle pattern for that side touching the daily VWAP (LevelPatternMatcher) is a signal, and it
-// comes back marked with the first of the remaining gates that stops it:
+// comes back with the first signal filter it fails (FailedFilter):
 //
 //   distance/speed/gap change (VwapStack) → leave first, then pull back (DepartureTracker)
 //
-// Only BlockedBy = None may trade; debug.csv records every signal either way. The order gates
-// (session, TradeDirection, …) come later, in OrderExecutor. This class only reads data and
-// orders the gates; the rules live in their own classes.
+// Whether it trades is OrderExecutor's call. This class only reads data and orders the filters;
+// the rules live in their own classes.
 public class SignalDetector {
     // 形态最多要看三根 K 线（current / previous / earlier），而 OnBar() 里最后一根收盘 K 线
     // 的下标是 Count-2，所以至少要有 4 根才读得到 earlier。
@@ -56,7 +55,7 @@ public class SignalDetector {
             return null;
 
         // The key level is the daily VWAP, the yellow line; the weekly VWAP only gates direction.
-        var level = new TradeLevelModel(LevelName, side, vwap.Daily, _settings.RiskPct, _settings.TakeProfitR);
+        var level = new TradeLevelModel(LevelName, side, vwap.Daily);
         SignalModel signal =
             LevelPatternMatcher.Match(current, ReadCandle(closedBarIndex - 1), ReadCandle(closedBarIndex - 2), level);
 
@@ -64,19 +63,12 @@ public class SignalDetector {
             return null;
 
         Stamp(signal, closedBarIndex, strong, side);
-        signal.BlockedBy = FindBlockingGate(strong, side);
         return signal;
     }
 
-    private EntryGateModel FindBlockingGate(VwapStrongReadingModel strong, SignalSideModel side) {
-        EntryGateModel vwapGate = VwapStack.FindBlockingGate(strong, _settings.VwapFilters, side);
-
-        if (vwapGate != EntryGateModel.None)
-            return vwapGate;
-
-        // Leave first, then pull back: a pattern on the daily VWAP that never left it is not a
-        // V2 trade. Off when DepartureMin = 0, and then this line changes nothing.
-        return _departureTracker.IsAllowed(side) ? EntryGateModel.None : EntryGateModel.Departure;
+    // After a fill the next trade must earn its own departure (V2 section 6.3).
+    public void ResetAfterEntry() {
+        _departureTracker.ResetAfterEntry();
     }
 
     // The readings travel on to debug.csv, and to the trade CSV when the signal trades.
@@ -86,6 +78,18 @@ public class SignalDetector {
         signal.Strong = strong;
         signal.Metrics = VwapStrongMetrics.Compute(strong, side);
         signal.Departure = _departureTracker.CreateSnapshot();
+        signal.FailedFilter = FindFailedFilter(signal.Metrics, side);
+    }
+
+    private EntryGateModel FindFailedFilter(VwapStrongMetricsModel metrics, SignalSideModel side) {
+        EntryGateModel vwapFilter = VwapStack.FindFailedFilter(metrics, _settings.VwapFilters);
+
+        if (vwapFilter != EntryGateModel.None)
+            return vwapFilter;
+
+        // Leave first, then pull back: a pattern on the daily VWAP that never left it is not a
+        // V2 trade. Off when DepartureMin = 0, and then this line changes nothing.
+        return _departureTracker.IsAllowed(side) ? EntryGateModel.None : EntryGateModel.Departure;
     }
 
     private VwapStrongReadingModel ReadStrong(int closedBarIndex, CandleModel current, VwapSampleModel vwap) {

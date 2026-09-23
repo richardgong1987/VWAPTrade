@@ -20,22 +20,14 @@ public class OrderPlanModel {
     public double AccountEquity { get; set; }
     public double RiskMoney { get; set; }
     public double EstimatedRiskMoney { get; set; }
+
+    // The broker order label, set by OrderExecutor.
     public string Label { get; set; } = "";
 
-    public string KeyLevel { get; set; } = "";
-    public string SignalName { get; set; } = "";
+    // The signal and the settings this plan was made from. The trade CSV reads the entry's VWAP
+    // readings and filter settings through them, for the entry row and again for the close row
+    // (by then the live VWAP has moved on).
+    public SignalModel Signal { get; set; }
 
-    // 下单当时的 VWAP 指标快照：开仓行与平仓行写的是同一份，平仓时不再重算
-    // （那时的 VWAP 已经跑远了）。取不到的一律留 NaN，写进 CSV 时是空白，不能伪造成 0。
-    public VwapStrongReadingModel VwapReading { get; set; }
-
-    public VwapStrongMetricsModel VwapMetrics { get; set; }
-
-    // 下单当时生效的过滤设置与方向许可，一并写进 CSV：日后看一行就知道这笔是在什么口径下成交的。
-    public VwapFilterSettingsModel VwapFilters { get; set; }
-
-    public TradeDirectionPermissionModel TradeDirectionMode { get; set; }
-
-    // 下单当时的 Departure 状态（V2 第 6 节）。闸门关着时只有阈值 0 有意义，状态列写空白。
-    public DepartureSnapshotModel Departure { get; set; }
+    public TradeSettingsModel Settings { get; set; }
 }

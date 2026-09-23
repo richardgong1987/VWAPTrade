@@ -63,7 +63,7 @@ public static class TradeCsvColumns {
         Reading("SlopeRateX_Selected", r => Metrics(r)?.SlopeRateXSelected),
 
         // ── 当时生效的设置与扩口变化 ─────────────────────────────────────────
-        Text("TradeDirectionMode", r => r.EntryPlan?.TradeDirectionMode.ToString() ?? ""),
+        Text("TradeDirectionMode", r => Settings(r)?.TradeDirectionMode.ToString() ?? ""),
         Text("UseGapChangeFilter", r => Filters(r)?.UseGapChangeFilter.ToString() ?? ""),
         Reading("GapChangeRateMin", r => EnabledRange(r)?.GapChangeRateMin),
         Reading("GapChangeRateMax", r => EnabledRange(r)?.GapChangeRateMax),
@@ -100,11 +100,17 @@ public static class TradeCsvColumns {
         return string.Join(",", cells);
     }
 
-    private static VwapStrongReadingModel Reading(TradeRecordModel record) => record.EntryPlan?.VwapReading;
+    // Rows read the entry's signal and settings through its plan. A close row for a position
+    // opened before a restart has no plan, so every one of these columns is blank there.
+    private static SignalModel EntrySignal(TradeRecordModel record) => record.EntryPlan?.Signal;
 
-    private static VwapStrongMetricsModel Metrics(TradeRecordModel record) => record.EntryPlan?.VwapMetrics;
+    private static TradeSettingsModel Settings(TradeRecordModel record) => record.EntryPlan?.Settings;
 
-    private static VwapFilterSettingsModel Filters(TradeRecordModel record) => record.EntryPlan?.VwapFilters;
+    private static VwapStrongReadingModel Reading(TradeRecordModel record) => EntrySignal(record)?.Strong;
+
+    private static VwapStrongMetricsModel Metrics(TradeRecordModel record) => EntrySignal(record)?.Metrics;
+
+    private static VwapFilterSettingsModel Filters(TradeRecordModel record) => Settings(record)?.VwapFilters;
 
     // 过滤没开时不写 Min/Max —— 那两个数当时根本没参与判断，写出来会被误读成生效过。
     private static VwapFilterSettingsModel EnabledRange(TradeRecordModel record) {
@@ -112,7 +118,7 @@ public static class TradeCsvColumns {
         return filters != null && filters.UseGapChangeFilter ? filters : null;
     }
 
-    private static DepartureSnapshotModel Departure(TradeRecordModel record) => record.EntryPlan?.Departure;
+    private static DepartureSnapshotModel Departure(TradeRecordModel record) => EntrySignal(record)?.Departure;
 
     // 同 EnabledRange 的理由：闸门关着时那些状态和根数都没参与判断，只留 DepartureMin —— 它本身
     // 就是开关（0 = 关闭），写出来正好说明这一趟是在关着的口径下跑的。

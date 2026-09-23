@@ -28,17 +28,13 @@ public class TradeJournal {
     // 保本止损要按开仓时的 R 算触发价，所以把方案摊给它看。
     public IReadOnlyDictionary<int, OrderPlanModel> Plans => _plans;
 
-    public bool RecordEntry(OrderPlanModel planModel, Position position) {
+    public void RecordEntry(OrderPlanModel planModel, Position position) {
         string csvId = _csvLogger.AppendEntry(planModel, position, _symbolName, _timeFrame);
-
-        if (string.IsNullOrWhiteSpace(csvId))
-            return false;
 
         _plans[position.Id] = planModel;
         _csvIds[position.Id] = csvId;
         _entryEquities[position.Id] = planModel.AccountEquity;
         _robot.Print("*****CSV trade record added. Path: {0}", _csvLogger.FilePath);
-        return true;
     }
 
     public void RecordClose(Position position, PositionCloseReason reason) {

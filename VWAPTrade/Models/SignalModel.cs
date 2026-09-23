@@ -2,10 +2,11 @@ using System;
 
 namespace cAlgo.Robots;
 
-// 一个信号 = 关键位在某根收盘 K 线上被形态命中（见 LevelPatternMatcher），
-// 一根 K 线最多一个，交给 OrderExecutor 下单。
+// A signal: on a Strong bar, a candle pattern for the Strong side touched the key level (see
+// SignalDetector and LevelPatternMatcher). At most one per bar. It says only what the bar
+// showed; what became of it is an EntryOutcomeModel.
 public class SignalModel {
-    // 命中的那一档：方向、风险预算与止盈倍数都从它来。
+    // The level that was touched; the trade side comes from it.
     public TradeLevelModel Level { get; set; }
 
     // 命中的形态名，例如 S_Pin_1。写进 CSV 的「信号」列，也是图上标记的文字。
@@ -33,14 +34,7 @@ public class SignalModel {
 
     public DateTime BarTime { get; set; }
 
-    // The first gate that stopped this signal; None = it passed them all. SignalDetector fills in
-    // the signal gates, OrderExecutor the order gates.
-    public EntryGateModel BlockedBy { get; set; }
-
-    // Extra facts for the gates that have them: the planner's reject reason, the broker's error.
-    public string BlockDetail { get; set; } = "";
-
-    // Set by OrderExecutor once the order is filled; null means no order went out. debug.csv
-    // writes it so a row can be matched to the trade CSV's 持仓ID.
-    public int? PositionId { get; set; }
+    // The first signal filter (gap, speed, gap change, Departure) this signal fails, judged from
+    // its own readings; None = it passes them all and may go on to the order gates.
+    public EntryGateModel FailedFilter { get; set; }
 }

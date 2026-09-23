@@ -1,13 +1,15 @@
 using cAlgo.Robots;
 
 namespace VWAPTrade.Tests {
-    // Settings for tests that are not about the stop offset or the breakeven stop: both are
-    // switched off so the geometry under test is only what the test states.
+    // Settings for tests: 1% risk, 2R take profit, no stop offset, no breakeven stop and every
+    // filter off, so what is under test is only what the test states.
     internal static class TestSettings {
-        public static TradeSettingsModel NoStopOffset() => WithStopOffsetTicks(0);
+        public static TradeSettingsModel NoStopOffset() => Create();
 
-        public static TradeSettingsModel WithStopOffsetTicks(int stopOffsetTicks) =>
-            new(riskPct: 1.0, takeProfitR: 2.0, stopOffsetTicks, breakevenTriggerR: 0.0, breakevenOffsetTicks: 0,
+        public static TradeSettingsModel WithStopOffsetTicks(int stopOffsetTicks) => Create(stopOffsetTicks: stopOffsetTicks);
+
+        public static TradeSettingsModel Create(double riskPct = 1.0, double takeProfitR = 2.0, int stopOffsetTicks = 0) =>
+            new(riskPct, takeProfitR, stopOffsetTicks, breakevenTriggerR: 0.0, breakevenOffsetTicks: 0,
                 vwapFilters: NoFilters(), vwapSlopeLookbackBars: 6, atr14Source: Atr14SourceModel.ATR14_H1,
                 tradeDirectionMode: TradeDirectionPermissionModel.All);
 

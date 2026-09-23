@@ -61,21 +61,13 @@ namespace VWAPTrade.Tests.Signals {
         }
 
         [Fact]
-        public void a_level_with_no_risk_budget_produces_nothing() {
-            TradeLevelModel unusable = new("VWAP", SignalSideModel.Sell, price: 105.0, riskPct: 0.0, takeProfitR: 2.0);
-
-            Assert.Null(LevelPatternMatcher.Match(BearishPinbar(), Filler(), Filler(), unusable));
-        }
-
-        [Fact]
         public void a_bearish_pattern_is_not_taken_when_the_gate_only_allows_longs() {
             // Side comes from the VWAP stack gate; a long-only bar never matches a bearish pattern.
-            TradeLevelModel longOnly = new("VWAP", SignalSideModel.Buy, price: 105.0, riskPct: 1.0, takeProfitR: 2.0);
+            TradeLevelModel longOnly = new("VWAP", SignalSideModel.Buy, price: 105.0);
 
             Assert.Null(LevelPatternMatcher.Match(BearishPinbar(), Filler(), Filler(), longOnly));
         }
 
-        private static TradeLevelModel ShortLevel(double dailyVwap) =>
-            new("VWAP", SignalSideModel.Sell, dailyVwap, riskPct: 1.0, takeProfitR: 2.0);
+        private static TradeLevelModel ShortLevel(double dailyVwap) => new("VWAP", SignalSideModel.Sell, dailyVwap);
     }
 }

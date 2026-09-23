@@ -13,11 +13,11 @@ namespace cAlgo.Robots;
 //     simply truncated — the leading columns never changed order.
 // Anything else is left untouched: an unrecognised row is safer kept than guessed at.
 public static class TradeCsvMigrator {
-    // 当前列数跟着 TradeCsvSchema 走，加列时不用记得回来改这里。
+    // The current width follows TradeCsvColumns, so adding a column never needs an edit here.
     private static int CurrentColumnCount => TradeCsvColumns.Count;
 
     // 再往前：只有 20 列业务字段。「回撤开仓模式」与「挂单ID」两列在更早的时候已经废弃。
-    // 所有可识别的历史行都先收敛到这 20 列，再在末尾补空列凑到当前的 30 列。
+    // 所有可识别的历史行都先收敛到这 20 列，再在末尾补空列凑到当前的列数。
     private const int PreviousColumnCount = 20;
 
     // 去掉末尾那串波动/趋势状态列之后、尚未去掉上面两列的 22 列布局。所有可识别的历史行都先收敛到它，

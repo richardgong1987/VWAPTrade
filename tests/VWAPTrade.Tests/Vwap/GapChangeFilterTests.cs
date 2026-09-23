@@ -27,6 +27,10 @@ namespace VWAPTrade.Tests.Vwap {
         private static VwapFilterSettingsModel Filters(bool use = false, double min = 0.0, double max = 0.0) =>
             new(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: use, gapChangeRateMin: min, gapChangeRateMax: max);
 
+        // Only the gap change is ever switched on here, so a failure can only be GapChange.
+        private static EntryGateModel FailedFilter(VwapStrongReadingModel reading, VwapFilterSettingsModel filters) =>
+            VwapStack.FindFailedFilter(VwapStrongMetrics.Compute(reading, SignalSideModel.Buy), filters);
+
         [Theory]
         [InlineData(3, 2.0)] // 6/3
         [InlineData(6, 1.0)] // 6/6
@@ -90,23 +94,23 @@ namespace VWAPTrade.Tests.Vwap {
             // 关闭时连数值可不可用都不看 —— 关掉的过滤器不能变成新的过滤条件。
             VwapStrongReadingModel noLookback = Long(dailyBefore: double.NaN, weeklyBefore: double.NaN);
 
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(Long(), Filters()));
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(noLookback, Filters()));
+            Assert.Equal(EntryGateModel.None, FailedFilter(Long(), Filters()));
+            Assert.Equal(EntryGateModel.None, FailedFilter(noLookback, Filters()));
         }
 
         [Fact]
         public void an_enabled_filter_accepts_only_the_closed_interval() {
             // 这一笔的 GapChangeRateX30_Selected = 1.0/8 × 1 = 0.125
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(Long(), Filters(use: true, min: 0.10, max: 0.15)));
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(Long(), Filters(use: true, min: 0.13, max: 0.20)));
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(Long(), Filters(use: true, min: 0.00, max: 0.12)));
+            Assert.Equal(EntryGateModel.None, FailedFilter(Long(), Filters(use: true, min: 0.10, max: 0.15)));
+            Assert.Equal(EntryGateModel.GapChange, FailedFilter(Long(), Filters(use: true, min: 0.13, max: 0.20)));
+            Assert.Equal(EntryGateModel.GapChange, FailedFilter(Long(), Filters(use: true, min: 0.00, max: 0.12)));
         }
 
         [Theory]
         [InlineData(0.125, 0.20)] // 正好等于下界
         [InlineData(0.05, 0.125)] // 正好等于上界
         public void the_interval_endpoints_pass(double min, double max) {
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(Long(), Filters(use: true, min, max)));
+            Assert.Equal(EntryGateModel.None, FailedFilter(Long(), Filters(use: true, min, max)));
         }
 
         [Fact]
@@ -114,8 +118,8 @@ namespace VWAPTrade.Tests.Vwap {
             // 缩口的一笔：−0.5。区间跨过 0，用 0 当关闭值就会有歧义。
             VwapStrongReadingModel narrowing = Long(dailyBefore: 104.0, weeklyBefore: 96.0);
 
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(narrowing, Filters(use: true, min: -0.60, max: 0.10)));
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(narrowing, Filters(use: true, min: -0.40, max: 0.10)));
+            Assert.Equal(EntryGateModel.None, FailedFilter(narrowing, Filters(use: true, min: -0.60, max: 0.10)));
+            Assert.Equal(EntryGateModel.GapChange, FailedFilter(narrowing, Filters(use: true, min: -0.40, max: 0.10)));
         }
 
         [Fact]
@@ -124,16 +128,16 @@ namespace VWAPTrade.Tests.Vwap {
             VwapStrongReadingModel noAtr = Long();
             noAtr.Atr14H1 = double.NaN;
 
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(noLookback, Filters(use: true, min: -1.0, max: 1.0)));
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(noAtr, Filters(use: true, min: -1.0, max: 1.0)));
+            Assert.Equal(EntryGateModel.GapChange, FailedFilter(noLookback, Filters(use: true, min: -1.0, max: 1.0)));
+            Assert.Equal(EntryGateModel.GapChange, FailedFilter(noAtr, Filters(use: true, min: -1.0, max: 1.0)));
         }
 
         [Fact]
         public void an_enabled_filter_with_a_zero_zero_range_still_filters() {
             // 「开关关着」与「区间正好是 [0,0]」是两回事。若用 Min/Max 是否为 0 来判断关闭，
             // 这一笔（0.125）会被误放行 —— 这正是 GapChange 必须用独立开关的原因。
-            Assert.Equal(SignalSideModel.None, VwapStack.ResolveSide(Long(), Filters(use: true, min: 0.0, max: 0.0)));
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(Long(), Filters(use: false, min: 0.0, max: 0.0)));
+            Assert.Equal(EntryGateModel.GapChange, FailedFilter(Long(), Filters(use: true, min: 0.0, max: 0.0)));
+            Assert.Equal(EntryGateModel.None, FailedFilter(Long(), Filters(use: false, min: 0.0, max: 0.0)));
         }
 
         [Fact]
@@ -142,7 +146,7 @@ namespace VWAPTrade.Tests.Vwap {
             VwapStrongReadingModel stable = Long(dailyBefore: 103.0, weeklyBefore: 99.0);
 
             Assert.Equal(0.0, VwapStrongMetrics.Compute(stable, SignalSideModel.Buy).GapChangeRateX30Selected, precision: 9);
-            Assert.Equal(SignalSideModel.Buy, VwapStack.ResolveSide(stable, Filters(use: true, min: 0.0, max: 0.0)));
+            Assert.Equal(EntryGateModel.None, FailedFilter(stable, Filters(use: true, min: 0.0, max: 0.0)));
         }
 
         [Fact]
