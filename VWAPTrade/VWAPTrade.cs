@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using cAlgo.API;
 
 namespace cAlgo.Robots;
@@ -32,8 +33,7 @@ public class VWAPTrade : Robot {
     // 旧参数叫 VwapSlopeMin，比的是原始斜率；这个比的是 30 分钟标准化速度，不是同一个量纲，
     // 所以换了名字，避免旧值被静默当成新阈值。N 与 ATR 口径不变时，旧阈值 × 6/N 才是对应的新阈值；
     // 不知道当时的 N 就不能换算，只能重新标定。
-    [Parameter("VWAP斜率速度最小值 (30分钟标准化, ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0,
-        Step = 0.01, Group = "VWAP过滤")]
+    [Parameter("VWAP斜率速度最小值 (30分钟标准化, ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0, Step = 0.01, Group = "VWAP过滤")]
     public double VwapSlopeRateMin { get; set; }
 
     [Parameter("斜率回看K线数 N", DefaultValue = 6, MinValue = 1, MaxValue = 200, Group = "VWAP过滤")]
@@ -46,17 +46,14 @@ public class VWAPTrade : Robot {
     [Parameter("扩口变化过滤", DefaultValue = false, Group = "VWAP过滤")]
     public bool UseGapChangeFilter { get; set; }
 
-    [Parameter("扩口变化最小值 (30M标准化)", DefaultValue = -0.04, MinValue = -10.0, MaxValue = 10.0, Step = 0.01,
-        Group = "VWAP过滤")]
+    [Parameter("扩口变化最小值 (30M标准化)", DefaultValue = -0.04, MinValue = -10.0, MaxValue = 10.0, Step = 0.01, Group = "VWAP过滤")]
     public double GapChangeRateMin { get; set; }
 
-    [Parameter("扩口变化最大值 (30M标准化)", DefaultValue = 0.01, MinValue = -10.0, MaxValue = 10.0, Step = 0.01,
-        Group = "VWAP过滤")]
+    [Parameter("扩口变化最大值 (30M标准化)", DefaultValue = 0.01, MinValue = -10.0, MaxValue = 10.0, Step = 0.01, Group = "VWAP过滤")]
     public double GapChangeRateMax { get; set; }
 
     // 先离开日 VWAP、再回踩，才允许做这根形态（V2 第 6 节）。0 = 关闭，结果与没有这道闸门时完全一致。
-    [Parameter("离开最小距离 (ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0, Step = 0.1,
-        Group = "Departure离开确认")]
+    [Parameter("离开最小距离 (ATR倍数, 0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 10.0, Step = 0.1, Group = "Departure离开确认")]
     public double DepartureMin { get; set; }
 
     [Parameter("离开连续确认K线数", DefaultValue = 3, MinValue = 1, MaxValue = 100, Group = "Departure离开确认")]
@@ -90,8 +87,7 @@ public class VWAPTrade : Robot {
     protected override void OnStart() {
         LaunchDebug();
 
-        var vwapFilters = new VwapFilterSettingsModel(VwapGapMin, VwapSlopeRateMin, UseGapChangeFilter, GapChangeRateMin,
-            GapChangeRateMax);
+        var vwapFilters = new VwapFilterSettingsModel(VwapGapMin, VwapSlopeRateMin, UseGapChangeFilter, GapChangeRateMin, GapChangeRateMax);
         var departureSettings = new DepartureSettingsModel(DepartureMin, DepartureConfirmBars, DepartureMaxWaitBars);
         string error = StartupCheck.FindError(Bars.TimeFrame.Equals(TimeFrame.Minute5), Bars.TimeFrame.ToString(), OrderLabel,
             VwapSlopeLookbackBars, vwapFilters, departureSettings);
@@ -102,8 +98,8 @@ public class VWAPTrade : Robot {
             return;
         }
 
-        var settings = new TradeSettingsModel(RiskPct, TakeProfitR, StopOffsetTicks, BreakevenTriggerR, BreakevenOffsetTicks,
-            vwapFilters, VwapSlopeLookbackBars, Atr14Source, TradeDirectionMode);
+        var settings = new TradeSettingsModel(RiskPct, TakeProfitR, StopOffsetTicks, BreakevenTriggerR, BreakevenOffsetTicks, vwapFilters,
+            VwapSlopeLookbackBars, Atr14Source, TradeDirectionMode);
         PrintSettings(settings, departureSettings);
 
         BuildSignalPipeline(settings, departureSettings);
@@ -157,24 +153,23 @@ public class VWAPTrade : Robot {
         Print("*****VWAP filters | GapMin: {0}, SlopeRateMin: {1}, LookbackN: {2} ({3} min), Atr: {4} (0 = filter off)",
             settings.VwapFilters.GapMin, settings.VwapFilters.SlopeRateMin, settings.VwapSlopeLookbackBars,
             settings.VwapSlopeLookbackBars * 5, settings.Atr14Source);
-        Print("*****GapChange filter | Enabled: {0}, Min: {1}, Max: {2} | TradeDirection: {3}",
-            settings.VwapFilters.UseGapChangeFilter, settings.VwapFilters.GapChangeRateMin,
-            settings.VwapFilters.GapChangeRateMax, settings.TradeDirectionMode);
+        Print("*****GapChange filter | Enabled: {0}, Min: {1}, Max: {2} | TradeDirection: {3}", settings.VwapFilters.UseGapChangeFilter,
+            settings.VwapFilters.GapChangeRateMin, settings.VwapFilters.GapChangeRateMax, settings.TradeDirectionMode);
         Print("*****Departure gate | Enabled: {0}, Min: {1}, ConfirmBars: {2}, MaxWaitBars: {3} (0 = no limit)",
-            departureSettings.IsEnabled, departureSettings.DepartureMin, departureSettings.ConfirmBars,
-            departureSettings.MaxWaitBars);
+            departureSettings.IsEnabled, departureSettings.DepartureMin, departureSettings.ConfirmBars, departureSettings.MaxWaitBars);
 
         if (settings.RiskPct <= 0.0)
             Print("*****Risk % is 0, so this cBot will never trade. Set it above 0 to enable orders.");
     }
 
     private void LaunchDebug() {
-        if (IsDebug) {
-            bool result = Debugger.Launch();
-            if (!result) {
-                Print("Debugger launch failed");
-            }
-        }
+        if (!IsDebug)
+            return;
+
+        // Debugger.Launch() is the Windows route; on macOS, wait for Rider to attach instead.
+        var deadline = DateTime.UtcNow.AddSeconds(60);
+        while (!Debugger.IsAttached && DateTime.UtcNow < deadline)
+            Thread.Sleep(200);
     }
 
     // 输出目录按运行模式分开、互不覆盖：回测目录由脚本每次清空重建，模拟/实盘目录只追加、从不删除。
