@@ -4,19 +4,19 @@ using cAlgo.API;
 
 namespace cAlgo.Robots;
 
-// Reads the closed bars before a signal for LongBelowDailyVwapGate. It never crosses the 06:00
-// VWAP-day boundary: yesterday's price action must not suppress today's first valid long.
-public class LongBelowDailyVwapFeed {
+// Reads the closed bars before a signal for OppositeDailyVwapGate. It never crosses the 06:00
+// VWAP-day boundary: yesterday's price action must not suppress today's first valid signal.
+public class OppositeDailyVwapFeed {
     private readonly Bars _chartBars;
     private readonly VwapSeries _vwapSeries;
 
-    public LongBelowDailyVwapFeed(Bars chartBars, VwapSeries vwapSeries) {
+    public OppositeDailyVwapFeed(Bars chartBars, VwapSeries vwapSeries) {
         _chartBars = chartBars;
         _vwapSeries = vwapSeries;
     }
 
-    // Returns newest first and excludes the signal bar itself. The Strong rule already requires
-    // that bar to close above the daily VWAP for a long, so including it would dilute the rule.
+    // Returns newest first and excludes the signal bar itself. The Strong rule already puts that
+    // bar on the trade side of the daily VWAP, so including it would dilute this opposite-side rule.
     public IReadOnlyList<RecentDailyVwapBarModel> ReadBefore(int signalBarIndex, int lookbackBars) {
         var bars = new List<RecentDailyVwapBarModel>();
 

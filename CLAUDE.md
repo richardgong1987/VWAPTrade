@@ -15,11 +15,12 @@ per-trade risk budget. Entry gates, in order:
 3. **Speed** — `SlopeRateX30 = direction × (daily − daily[N]) / ATR × 6/N ≥ SlopeRateMin`.
 4. **Gap change** — `GapChangeRateX30 = (gap − gap[N]) / ATR × 6/N` must sit inside
    `[GapChangeRateMin, GapChangeRateMax]`, but only when `UseGapChangeFilter` is on.
-5. **Long recovery** — `Vwap/LongBelowDailyVwapGate.cs`: for a Buy only, inspect the preceding
-   `LongBelowDailyVwapLookbackBars` closes in the same 06:00→06:00 daily-VWAP period. If at least
-   `LongBelowDailyVwapBlockCount` are below the daily VWAP, block the signal. Count only closes:
-   a valid pattern has to touch the level, so a wick test would reject valid entries. The signal
-   bar is excluded. A block count of 0 switches this gate off.
+5. **Opposite-side recovery** — `Vwap/OppositeDailyVwapGate.cs`: inspect the preceding closes in
+   the same 06:00→06:00 daily-VWAP period. For a Buy, count closes below the daily VWAP; for a
+   Sell, count closes above it. If at least the configured block count are on that opposite side,
+   block the signal. Count only closes: a valid pattern has to touch the level, so a wick test
+   would reject valid entries. The signal bar is excluded. A block count of 0 switches this gate
+   off.
 6. **Departure** — `Vwap/DepartureTracker.cs`, from `docs/VWAP_Strong_V2.pdf` §6: the price must
    first genuinely leave the daily VWAP before a pattern touching that line may be traded.
    `DepartureX = direction × (close − daily) / ATR ≥ DepartureMin` on `DepartureConfirmBars`
@@ -71,19 +72,19 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
 - `Vwap/` — `VwapPeriod` (when the VWAP resets), `TradingSession` (when orders may open — a
   different clock, see above), `VwapStrongMetrics` (the GapX / SlopeRawX / SlopeRateX30 formulas),
   `VwapStack` (gate 1 `ResolveSide` = Strong or not; gates 2–4 `FindFailedFilter`),
-  `LongBelowDailyVwapGate` (gate 5, a long-only recovery filter),
+  `OppositeDailyVwapGate` (gate 5, a side-aware recovery filter),
   `DepartureTracker` (gate 6, the leave-then-return state machine),
   `StartupCheck` (parameter validation), `VwapCalculator` (pure accumulation) — all unit tested —
   plus the two classes that read the platform and feed them: `VwapSeries`, which caches one
   `VwapSampleModel` per closed bar and is the single source of VWAP values for drawing and
-  signals, `LongBelowDailyVwapFeed`, which reads the preceding same-day closes for its gate, and
+  signals, `OppositeDailyVwapFeed`, which reads the preceding same-day closes for its gate, and
   `DepartureFeed`, which hands each closed bar to `DepartureTracker`.
 - `Indicators/` — `Atr14Series` (one timeframe's ATR14, Wilder) and `Atr14Pair` (the M5 + H1 pair,
   and the one place that knows which of the two `ATR归一周期` selects).
 - `Signals/` — `SignalDetector` returns the closed bar's signal or null. A signal needs a Strong
   bar (the stack alone, `VwapStack.ResolveSide(close, daily, weekly)`, returns Buy or Sell) and a
   pattern for that side touching the daily VWAP. It carries the first signal filter it fails
-  (`FailedFilter`: gap, speed, gap change, long recovery, Departure). `LevelPatternMatcher`
+  (`FailedFilter`: gap, speed, gap change, opposite-side recovery, Departure). `LevelPatternMatcher`
   decides which candle pattern touches the key level; `HanJinSignals26` is the pattern classifier
   itself (a port — see below).
 - `Chart/` — `VwapLines` draws the three VWAP lines, `SignalMarkers` the entry markers.
@@ -104,7 +105,7 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
 - `Models/` — data types: `SignalModel` (what the bar showed), `EntryOutcomeModel` (what became of
   it), `OrderPlanModel` (sizing, plus references to the signal and settings it was made from),
   `TradeLevelModel`, `TradeSettingsModel`, `VwapSampleModel`, `TradeDirectionModel`,
-  `LongBelowDailyVwapSettingsModel`, `LongBelowDailyVwapSnapshotModel`, `RecentDailyVwapBarModel`,
+  `OppositeDailyVwapSettingsModel`, `OppositeDailyVwapSnapshotModel`, `RecentDailyVwapBarModel`,
   `DepartureSettingsModel`, `DepartureBarModel`, `DepartureSnapshotModel`, `EntryGateModel`,
   `TradeRecordModel` and `StrongSignalRecordModel` (one CSV row each), the `ISymbolModel` port,
   and its `CAlgoSymbolModel` adapter (the one Models/ file that references `cAlgo.API`).
@@ -116,7 +117,7 @@ cAlgo, and it is never linked into the test project.
 Two conventions worth knowing before renaming things:
 
 - **Reader / rule pairs.** Where a rule needs market data, the reading and the rule are separate
-  classes: `VwapSeries`/`VwapCalculator`, `LongBelowDailyVwapFeed`/`LongBelowDailyVwapGate` and
+  classes: `VwapSeries`/`VwapCalculator`, `OppositeDailyVwapFeed`/`OppositeDailyVwapGate` and
   `DepartureFeed`/`DepartureTracker`. The reader touches `Bars`; the rule stays pure and unit
   tested. Keep new work in that shape.
 - **`SignalSideModel` (None/Buy/Sell) and `TradeDirectionModel` (Long/Short) are deliberately

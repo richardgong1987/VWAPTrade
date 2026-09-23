@@ -51,12 +51,12 @@ public class VWAPTrade : Robot {
     [Parameter("扩口变化最大值 (30M标准化)", DefaultValue = 0.01, MinValue = -10.0, MaxValue = 10.0, Step = 0.01, Group = "VWAP过滤")]
     public double GapChangeRateMax { get; set; }
 
-    // Count preceding closes in the same daily-VWAP period. The signal bar is excluded because a
-    // long Strong bar must itself close above the yellow daily VWAP.
-    [Parameter("做多前回看K线数", DefaultValue = 6, MinValue = 1, MaxValue = 200, Group = "做多黄线下过滤")]
+    // These property names stay so existing cTrader instances retain their saved values from the
+    // earlier long-only version. The gate now counts the opposite side for both trade directions.
+    [Parameter("信号前回看K线数", DefaultValue = 6, MinValue = 1, MaxValue = 200, Group = "反向黄线过滤")]
     public int LongBelowDailyVwapLookbackBars { get; set; }
 
-    [Parameter("黄线下K线阻断根数 (0=关闭)", DefaultValue = 3, MinValue = 0, MaxValue = 200, Group = "做多黄线下过滤")]
+    [Parameter("反向侧K线阻断根数 (0=关闭)", DefaultValue = 3, MinValue = 0, MaxValue = 200, Group = "反向黄线过滤")]
     public int LongBelowDailyVwapBlockCount { get; set; }
 
     // 先离开日 VWAP、再回踩，才允许做这根形态（V2 第 6 节）。0 = 关闭，结果与没有这道闸门时完全一致。
@@ -95,10 +95,10 @@ public class VWAPTrade : Robot {
         LaunchDebug();
 
         var vwapFilters = new VwapFilterSettingsModel(VwapGapMin, VwapSlopeRateMin, UseGapChangeFilter, GapChangeRateMin, GapChangeRateMax);
-        var longBelowDailyVwap = new LongBelowDailyVwapSettingsModel(LongBelowDailyVwapLookbackBars, LongBelowDailyVwapBlockCount);
+        var oppositeDailyVwap = new OppositeDailyVwapSettingsModel(LongBelowDailyVwapLookbackBars, LongBelowDailyVwapBlockCount);
         var departureSettings = new DepartureSettingsModel(DepartureMin, DepartureConfirmBars, DepartureMaxWaitBars);
         string error = StartupCheck.FindError(Bars.TimeFrame.Equals(TimeFrame.Minute5), Bars.TimeFrame.ToString(), OrderLabel,
-            VwapSlopeLookbackBars, vwapFilters, departureSettings, longBelowDailyVwap);
+            VwapSlopeLookbackBars, vwapFilters, departureSettings, oppositeDailyVwap);
 
         if (error != null) {
             Print("*****参数有误，已停止：{0}", error);
@@ -107,7 +107,7 @@ public class VWAPTrade : Robot {
         }
 
         var settings = new TradeSettingsModel(RiskPct, TakeProfitR, StopOffsetTicks, BreakevenTriggerR, BreakevenOffsetTicks, vwapFilters,
-            VwapSlopeLookbackBars, Atr14Source, TradeDirectionMode, longBelowDailyVwap);
+            VwapSlopeLookbackBars, Atr14Source, TradeDirectionMode, oppositeDailyVwap);
         PrintSettings(settings, departureSettings);
 
         BuildSignalPipeline(settings, departureSettings);
@@ -117,7 +117,7 @@ public class VWAPTrade : Robot {
         Print("*****VWAP break and reverse started.");
     }
 
-    // Signal pipeline: VWAP series → two ATRs → long recovery history → Departure state → signal detection.
+    // Signal pipeline: VWAP series → two ATRs → opposite-side recovery history → Departure state → signal detection.
     private void BuildSignalPipeline(TradeSettingsModel settings, DepartureSettingsModel departureSettings) {
         _vwapSeries = new VwapSeries(Bars);
         _vwapSeries.Update();
@@ -128,8 +128,8 @@ public class VWAPTrade : Robot {
 
         var departureTracker = new DepartureTracker(departureSettings);
         var departureFeed = new DepartureFeed(Bars, _vwapSeries, atr14, settings.Atr14Source, departureTracker);
-        var longBelowDailyVwapFeed = new LongBelowDailyVwapFeed(Bars, _vwapSeries);
-        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14, settings, departureFeed, departureTracker, longBelowDailyVwapFeed);
+        var oppositeDailyVwapFeed = new OppositeDailyVwapFeed(Bars, _vwapSeries);
+        _signalDetector = new SignalDetector(Bars, _vwapSeries, atr14, settings, departureFeed, departureTracker, oppositeDailyVwapFeed);
     }
 
     // 下单这一路：CSV 文件 → 定价定量 → 记账 → 保本止损 → 执行。
@@ -212,8 +212,8 @@ public class VWAPTrade : Robot {
             settings.VwapSlopeLookbackBars * 5, settings.Atr14Source);
         Print("*****GapChange filter | Enabled: {0}, Min: {1}, Max: {2} | TradeDirection: {3}", settings.VwapFilters.UseGapChangeFilter,
             settings.VwapFilters.GapChangeRateMin, settings.VwapFilters.GapChangeRateMax, settings.TradeDirectionMode);
-        Print("*****Long below daily VWAP gate | Enabled: {0}, LookbackBars: {1}, BlockCount: {2}",
-            settings.LongBelowDailyVwap.IsEnabled, settings.LongBelowDailyVwap.LookbackBars, settings.LongBelowDailyVwap.BlockCount);
+        Print("*****Opposite-side daily VWAP gate | Enabled: {0}, LookbackBars: {1}, BlockCount: {2}",
+            settings.OppositeDailyVwap.IsEnabled, settings.OppositeDailyVwap.LookbackBars, settings.OppositeDailyVwap.BlockCount);
         Print("*****Departure gate | Enabled: {0}, Min: {1}, ConfirmBars: {2}, MaxWaitBars: {3} (0 = no limit)",
             departureSettings.IsEnabled, departureSettings.DepartureMin, departureSettings.ConfirmBars, departureSettings.MaxWaitBars);
 
