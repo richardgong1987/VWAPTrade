@@ -1,18 +1,18 @@
 using System;
-using System.Collections.Generic;
 using cAlgo.API;
 
 namespace cAlgo.Robots;
 
-// Asked once per closed bar: which candle patterns touch the daily VWAP (LevelPatternMatcher),
-// and which gate, if any, stops each of them:
+// Asked once per closed bar. The bar is Strong when the stack alone points one way
+// (VwapStack.ResolveSide on close / daily / weekly returns Buy or Sell). A Strong bar with a
+// candle pattern for that side touching the daily VWAP (LevelPatternMatcher) is a signal, and it
+// comes back marked with the first of the remaining gates that stops it:
 //
-//   stack/distance/speed/gap change (VwapStack) → leave first, then pull back (DepartureTracker)
+//   distance/speed/gap change (VwapStack) → leave first, then pull back (DepartureTracker)
 //
-// Both sides are scanned, so a pattern the stack points away from is reported too. Only a signal
-// with BlockedBy = None may be traded, and there is at most one: the stack points one way at a
-// time. The blocked ones go to debug.csv. The order gates (session, TradeDirection, …) come later,
-// in OrderExecutor. This class only reads data and orders the gates; the rules live in their own classes.
+// Only BlockedBy = None may trade; debug.csv records every signal either way. The order gates
+// (session, TradeDirection, …) come later, in OrderExecutor. This class only reads data and
+// orders the gates; the rules live in their own classes.
 public class SignalDetector {
     // 形态最多要看三根 K 线（current / previous / earlier），而 OnBar() 里最后一根收盘 K 线
     // 的下标是 Count-2，所以至少要有 4 根才读得到 earlier。
@@ -38,36 +38,34 @@ public class SignalDetector {
         _departureTracker = departureTracker;
     }
 
-    // Empty when no pattern touches the daily VWAP on this bar.
-    public IReadOnlyList<SignalModel> ScanClosedBar() {
+    // Null when the bar is not Strong, or no pattern for the Strong side touches the daily VWAP.
+    public SignalModel DetectOnClosedBar() {
         int closedBarIndex = _chartBars.Count - 2; // last fully closed bar in OnBar()
 
         if (_chartBars.Count < MinimumBarCount || closedBarIndex >= _vwapSeries.Count)
-            return Array.Empty<SignalModel>();
+            return null;
 
         _departureFeed.CatchUpTo(closedBarIndex);
 
         CandleModel current = ReadCandle(closedBarIndex);
-        CandleModel previous = ReadCandle(closedBarIndex - 1);
-        CandleModel earlier = ReadCandle(closedBarIndex - 2);
         VwapSampleModel vwap = _vwapSeries[closedBarIndex];
         VwapStrongReadingModel strong = ReadStrong(closedBarIndex, current, vwap);
-        var signals = new List<SignalModel>();
+        SignalSideModel side = VwapStack.ResolveSide(strong.Close, strong.DailyVwap, strong.WeeklyVwap);
 
-        foreach (SignalSideModel side in new[] { SignalSideModel.Buy, SignalSideModel.Sell }) {
-            // The key level is the daily VWAP, the yellow line; the weekly VWAP only gates direction.
-            var level = new TradeLevelModel(LevelName, side, vwap.Daily, _settings.RiskPct, _settings.TakeProfitR);
-            SignalModel signal = LevelPatternMatcher.Match(current, previous, earlier, level);
+        if (side == SignalSideModel.None)
+            return null;
 
-            if (signal == null)
-                continue;
+        // The key level is the daily VWAP, the yellow line; the weekly VWAP only gates direction.
+        var level = new TradeLevelModel(LevelName, side, vwap.Daily, _settings.RiskPct, _settings.TakeProfitR);
+        SignalModel signal =
+            LevelPatternMatcher.Match(current, ReadCandle(closedBarIndex - 1), ReadCandle(closedBarIndex - 2), level);
 
-            Stamp(signal, closedBarIndex, strong, side);
-            signal.BlockedBy = FindBlockingGate(strong, side);
-            signals.Add(signal);
-        }
+        if (signal == null)
+            return null;
 
-        return signals;
+        Stamp(signal, closedBarIndex, strong, side);
+        signal.BlockedBy = FindBlockingGate(strong, side);
+        return signal;
     }
 
     private EntryGateModel FindBlockingGate(VwapStrongReadingModel strong, SignalSideModel side) {
@@ -81,7 +79,7 @@ public class SignalDetector {
         return _departureTracker.IsAllowed(side) ? EntryGateModel.None : EntryGateModel.Departure;
     }
 
-    // The readings travel on to the trade CSV, or to debug.csv when the signal is blocked.
+    // The readings travel on to debug.csv, and to the trade CSV when the signal trades.
     private void Stamp(SignalModel signal, int closedBarIndex, VwapStrongReadingModel strong, SignalSideModel side) {
         signal.BarIndex = closedBarIndex;
         signal.BarTime = _chartBars.OpenTimes[closedBarIndex];

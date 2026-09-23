@@ -122,6 +122,7 @@ public class OrderExecutor {
         }
 
         _robot.Print("*****Order submitted | Label: {0}", planModel.Label);
+        signalModel.PositionId = result.Position.Id;
         return _journal.RecordEntry(planModel, result.Position);
     }
 

@@ -69,10 +69,11 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
   signals, and `DepartureFeed`, which hands each closed bar to `DepartureTracker`.
 - `Indicators/` — `Atr14Series` (one timeframe's ATR14, Wilder) and `Atr14Pair` (the M5 + H1 pair,
   and the one place that knows which of the two `ATR归一周期` selects).
-- `Signals/` — `SignalDetector` returns every pattern that touches the daily VWAP on the closed
-  bar, both sides, each marked with the first gate that blocks it (`BlockedBy`, an
-  `EntryGateModel`); at most one has `BlockedBy = None` and may trade. `OrderExecutor` fills in
-  the order gates. `LevelPatternMatcher` decides which candle pattern touches the key level;
+- `Signals/` — `SignalDetector` returns the closed bar's signal or null. A signal needs a Strong
+  bar (the stack alone, `VwapStack.ResolveSide(close, daily, weekly)`, returns Buy or Sell) and a
+  pattern for that side touching the daily VWAP. It comes back marked with the first of the
+  remaining gates that blocks it (`BlockedBy`, an `EntryGateModel`); only `None` may trade, and
+  `OrderExecutor` fills in the order gates. `LevelPatternMatcher` decides which candle pattern touches the key level;
   `HanJinSignals26` is the pattern classifier itself (a port — see below).
 - `Chart/` — `VwapLines` draws the three VWAP lines, `SignalMarkers` the entry markers.
 - `Orders/` — `OrderPlanner` (pure sizing/geometry, and every reason an order is rejected),
@@ -84,9 +85,9 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
   read it), so the header and every row are generated from one list and cannot drift apart;
   `TradeCsvLogger` decides what facts go in a row; `TradeCsvFile` owns the file itself (path,
   header, append); `TradeCsvMigrator` (pure, unit tested) upgrades files written by older builds.
-  `BlockedSignalCsvLogger` (pure, unit tested) writes `debug.csv` next to the trade CSV: one row
-  per pattern on the yellow line that did not trade, with the gate that stopped it. It is a
-  separate file with no migration. `CsvCell` is the cell formatting both files share.
+  `StrongSignalCsvLogger` (pure, unit tested) writes `debug.csv` next to the trade CSV: one row
+  per Strong signal, traded or not, with the gate that stopped it and the position ID when it
+  traded. It is a separate file with no migration. `CsvCell` is the cell formatting both files share.
 - `Models/` — data types: `OrderPlanModel`, `SignalModel`, `TradeLevelModel`,
   `TradeSettingsModel`, `VwapSampleModel`, `TradeDirectionModel`, `DepartureSettingsModel`,
   `DepartureBarModel`, `DepartureSnapshotModel`, `EntryGateModel`, the `ISymbolModel` port, and

@@ -4,14 +4,14 @@ using cAlgo.Robots;
 using Xunit;
 
 namespace VWAPTrade.Tests.TradeLog {
-    // debug.csv: one row per pattern on the yellow line that did not trade, saying which gate
-    // stopped it. These tests pin what a row says and how the file behaves across runs.
-    public class BlockedSignalCsvLoggerTests : IDisposable {
+    // debug.csv: one row per Strong signal on the yellow line, traded or not; an untraded row says
+    // which gate stopped it. These tests pin what a row says and how the file behaves across runs.
+    public class StrongSignalCsvLoggerTests : IDisposable {
         // 2026-09-22 is a Tuesday, 2026-09-21 a Monday (no trading on Mondays).
         private static readonly DateTime TuesdayNoon = new(2026, 9, 22, 12, 0, 0);
         private static readonly DateTime MondayNoon = new(2026, 9, 21, 12, 0, 0);
 
-        private readonly string _directory = Path.Combine(Path.GetTempPath(), "BlockedSignalCsvLoggerTests-" + Guid.NewGuid());
+        private readonly string _directory = Path.Combine(Path.GetTempPath(), "StrongSignalCsvLoggerTests-" + Guid.NewGuid());
 
         public void Dispose() {
             if (Directory.Exists(_directory))
@@ -35,18 +35,18 @@ namespace VWAPTrade.Tests.TradeLog {
         }
 
         private static string Cell(SignalModel signal, DateTime decisionTime, string column) {
-            string[] names = BlockedSignalCsvLogger.Header.Split(',');
-            string[] cells = BlockedSignalCsvLogger.ToCsvLine(signal, decisionTime, "XAUUSD", TestSettings.NoStopOffset()).Split(',');
+            string[] names = StrongSignalCsvLogger.Header.Split(',');
+            string[] cells = StrongSignalCsvLogger.ToCsvLine(signal, decisionTime, "XAUUSD", TestSettings.NoStopOffset()).Split(',');
 
             return cells[Array.IndexOf(names, column)];
         }
 
         [Fact]
         public void a_row_has_one_cell_per_header_column() {
-            string line = BlockedSignalCsvLogger.ToCsvLine(ShortEngulfing(EntryGateModel.GapMin), TuesdayNoon, "XAUUSD",
+            string line = StrongSignalCsvLogger.ToCsvLine(ShortEngulfing(EntryGateModel.GapMin), TuesdayNoon, "XAUUSD",
                 TestSettings.NoStopOffset());
 
-            Assert.Equal(BlockedSignalCsvLogger.Header.Split(',').Length, line.Split(',').Length);
+            Assert.Equal(StrongSignalCsvLogger.Header.Split(',').Length, line.Split(',').Length);
         }
 
         [Fact]
@@ -60,6 +60,25 @@ namespace VWAPTrade.Tests.TradeLog {
         }
 
         [Fact]
+        public void a_blocked_signal_is_marked_not_ordered_and_has_no_position() {
+            SignalModel signal = ShortEngulfing(EntryGateModel.Departure);
+
+            Assert.Equal("未下单", Cell(signal, TuesdayNoon, "下单结果"));
+            Assert.Equal("", Cell(signal, TuesdayNoon, "持仓ID"));
+            Assert.Equal("未完成离开确认", Cell(signal, TuesdayNoon, "拦截闸门"));
+        }
+
+        [Fact]
+        public void a_traded_signal_is_recorded_with_its_position_and_no_gate() {
+            SignalModel signal = ShortEngulfing(EntryGateModel.None);
+            signal.PositionId = 12345;
+
+            Assert.Equal("已下单", Cell(signal, TuesdayNoon, "下单结果"));
+            Assert.Equal("12345", Cell(signal, TuesdayNoon, "持仓ID"));
+            Assert.Equal("", Cell(signal, TuesdayNoon, "拦截闸门"));
+        }
+
+        [Fact]
         public void the_session_flag_is_judged_at_the_decision_time() {
             SignalModel signal = ShortEngulfing(EntryGateModel.Session);
 
@@ -69,12 +88,12 @@ namespace VWAPTrade.Tests.TradeLog {
 
         [Fact]
         public void a_reading_that_could_not_be_computed_is_blank_not_zero() {
-            Assert.Equal("", Cell(ShortEngulfing(EntryGateModel.Stack), TuesdayNoon, "ATR14_H1"));
+            Assert.Equal("", Cell(ShortEngulfing(EntryGateModel.SlopeRateMin), TuesdayNoon, "ATR14_H1"));
         }
 
         [Fact]
         public void a_departure_gate_that_is_off_leaves_its_counters_blank() {
-            SignalModel off = ShortEngulfing(EntryGateModel.Stack);
+            SignalModel off = ShortEngulfing(EntryGateModel.SlopeRateMin);
             SignalModel on = ShortEngulfing(EntryGateModel.Departure, new DepartureSettingsModel(0.5, 3, 0));
 
             Assert.Equal("0", Cell(off, TuesdayNoon, "DepartureMin"));
@@ -87,25 +106,25 @@ namespace VWAPTrade.Tests.TradeLog {
             SignalModel signal = ShortEngulfing(EntryGateModel.OrderPlan);
             signal.BlockDetail = "Volume=100, Min=1000";
 
-            string line = BlockedSignalCsvLogger.ToCsvLine(signal, TuesdayNoon, "XAUUSD", TestSettings.NoStopOffset());
+            string line = StrongSignalCsvLogger.ToCsvLine(signal, TuesdayNoon, "XAUUSD", TestSettings.NoStopOffset());
 
             Assert.Contains("下单方案被拒,\"Volume=100, Min=1000\"", line);
         }
 
         [Fact]
         public void the_file_is_named_debug_csv_and_starts_with_the_header() {
-            var logger = new BlockedSignalCsvLogger(_directory, resetOnStart: true, "XAUUSD", TestSettings.NoStopOffset());
+            var logger = new StrongSignalCsvLogger(_directory, resetOnStart: true, "XAUUSD", TestSettings.NoStopOffset());
 
             Assert.Equal(Path.Combine(_directory, "debug.csv"), logger.FilePath);
-            Assert.Equal(new[] { BlockedSignalCsvLogger.Header }, File.ReadAllLines(logger.FilePath));
+            Assert.Equal(new[] { StrongSignalCsvLogger.Header }, File.ReadAllLines(logger.FilePath));
         }
 
         [Fact]
         public void without_reset_a_file_with_the_current_header_keeps_its_rows() {
-            var first = new BlockedSignalCsvLogger(_directory, resetOnStart: true, "XAUUSD", TestSettings.NoStopOffset());
-            first.Append(ShortEngulfing(EntryGateModel.Stack), TuesdayNoon);
+            var first = new StrongSignalCsvLogger(_directory, resetOnStart: true, "XAUUSD", TestSettings.NoStopOffset());
+            first.Append(ShortEngulfing(EntryGateModel.SlopeRateMin), TuesdayNoon);
 
-            var second = new BlockedSignalCsvLogger(_directory, resetOnStart: false, "XAUUSD", TestSettings.NoStopOffset());
+            var second = new StrongSignalCsvLogger(_directory, resetOnStart: false, "XAUUSD", TestSettings.NoStopOffset());
             second.Append(ShortEngulfing(EntryGateModel.Session), MondayNoon);
 
             Assert.Equal(3, File.ReadAllLines(second.FilePath).Length);
@@ -116,9 +135,9 @@ namespace VWAPTrade.Tests.TradeLog {
             Directory.CreateDirectory(_directory);
             File.WriteAllLines(Path.Combine(_directory, "debug.csv"), new[] { "old,header", "1,2" });
 
-            var logger = new BlockedSignalCsvLogger(_directory, resetOnStart: false, "XAUUSD", TestSettings.NoStopOffset());
+            var logger = new StrongSignalCsvLogger(_directory, resetOnStart: false, "XAUUSD", TestSettings.NoStopOffset());
 
-            Assert.Equal(new[] { BlockedSignalCsvLogger.Header }, File.ReadAllLines(logger.FilePath));
+            Assert.Equal(new[] { StrongSignalCsvLogger.Header }, File.ReadAllLines(logger.FilePath));
         }
     }
 }

@@ -39,4 +39,8 @@ public class SignalModel {
 
     // Extra facts for the gates that have them: the planner's reject reason, the broker's error.
     public string BlockDetail { get; set; } = "";
+
+    // Set by OrderExecutor once the order is filled; null means no order went out. debug.csv
+    // writes it so a row can be matched to the trade CSV's 持仓ID.
+    public int? PositionId { get; set; }
 }

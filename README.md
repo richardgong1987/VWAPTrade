@@ -81,24 +81,30 @@ Every trade is written to a CSV in `~/Documents`, in a folder picked by how the 
 
 The full path is printed in the cTrader log at start-up, on the `CSV logger path` line.
 
-### debug.csv: signals that didn't trade
+### debug.csv: every Strong signal, traded or not
 
-`debug.csv` sits next to the trade CSV and answers "why didn't this trade?". It gets one row for
-every candle pattern that touched the daily VWAP (the yellow line) on a closed bar but didn't
-become a trade. Both sides are checked, so a short pattern in a long-only stack shows up too.
+`debug.csv` sits next to the trade CSV. It gets one row for every **Strong signal**, whether it
+traded or not:
+
+- **Strong:** the stack alone points one way: `close > daily > weekly` (long) or
+  `close < daily < weekly` (short). The distance, speed, gap-change and Departure filters don't
+  decide Strong; they are gates the row reports on.
+- **Signal:** a candle pattern for that side (e.g. a bearish engulfing on a short bar) touches
+  the daily VWAP, the yellow line.
 
 Each row has:
 
 - **The signal:** bar time, decision time, whether that time is inside the order window
   (`在开仓时段`), symbol, signal name (e.g. `S_Eng_1`) and side.
-- **Why it was stopped:** `拦截闸门` names the first gate that blocked it, and `拦截详情` adds
-  the planner's reject reason or the broker's error when there is one.
+- **What became of it:** `下单结果` is 已下单 or 未下单. A traded row has its `持仓ID`, the same
+  ID as in the trade CSV, so the two files can be joined. An untraded row has `拦截闸门`, the
+  first gate that blocked it, and `拦截详情`, the planner's reject reason or the broker's error
+  when there is one.
 - **What the gates compared:** close, high, low, pattern stop, VWAPs, both ATRs, and every
   filter reading next to its threshold (GapX, SlopeRateX, gap change, Departure, trade direction).
 
 | `拦截闸门` | Gate |
 | --- | --- |
-| 排列不符 | Close / daily / weekly are not lined up for this side. |
 | 间距不足 | GapX below `VWAP间距最小值`. |
 | 速度不足 | SlopeRateX below `VWAP斜率速度最小值`. |
 | 扩口变化超出区间 | Gap change outside its range. |

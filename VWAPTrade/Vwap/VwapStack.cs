@@ -23,7 +23,7 @@ public static class VwapStack {
 
     // The first of gates ①–④ that stops a trade on this side, or None when all of them pass.
     // ResolveSide is built on this, so the order here is the order trading uses; debug.csv reports
-    // it for patterns on the yellow line that were not traded.
+    // it for every Strong signal on the yellow line.
     public static EntryGateModel FindBlockingGate(VwapStrongReadingModel reading, VwapFilterSettingsModel filters,
         SignalSideModel side) {
         if (side == SignalSideModel.None || ResolveSide(reading.Close, reading.DailyVwap, reading.WeeklyVwap) != side)

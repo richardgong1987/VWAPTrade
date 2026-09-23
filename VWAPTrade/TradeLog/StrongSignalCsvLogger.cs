@@ -10,23 +10,25 @@ using IoFile = System.IO.File;
 
 namespace cAlgo.Robots;
 
-// debug.csv: one row for every candle pattern that touched the daily VWAP (the yellow line) on a
-// closed bar but did not become a trade. Each row names the first gate that stopped it and carries
-// the readings and thresholds that gate compared, to answer "why didn't this trade?".
+// debug.csv: one row for every Strong signal — a closed bar whose stack points one way
+// (VwapStack.ResolveSide on close / daily / weekly) with a pattern for that side touching the
+// daily VWAP, the yellow line — whether it became a trade or not. A row that did not trade names
+// the first gate that stopped it; every row carries the readings and thresholds the gates
+// compared, so traded and untraded setups can be set side by side.
 //
 // A separate file from the trade CSV, written next to it. No migration: if the columns have
 // changed since the file was written, it starts over rather than append rows under a header
 // they no longer match.
 //
 // Pure, no cAlgo dependency, unit tested.
-public class BlockedSignalCsvLogger {
+public class StrongSignalCsvLogger {
     public const string FileName = "debug.csv";
 
     private const string TimeFormat = "yyyy-MM-dd HH:mm:ss";
     private static readonly Encoding CsvEncoding = new UTF8Encoding(true);
 
     private static readonly IReadOnlyList<Column> Columns = new Column[] {
-        // ── The signal and why it was stopped ───────────────────────────────
+        // ── The signal and what became of it ────────────────────────────────
         new("K线时间", r => r.Signal.BarTime.ToString(TimeFormat, CultureInfo.InvariantCulture)),
         // The session check runs at this time (the bar's close), not at the bar's open time.
         new("判定时间", r => r.DecisionTime.ToString(TimeFormat, CultureInfo.InvariantCulture)),
@@ -34,6 +36,8 @@ public class BlockedSignalCsvLogger {
         new("交易品种", r => r.SymbolName),
         new("信号", r => r.Signal.Label),
         new("多空", r => r.Signal.Level?.Side == SignalSideModel.Sell ? "空" : "多"),
+        new("下单结果", r => r.Signal.PositionId.HasValue ? "已下单" : "未下单"),
+        new("持仓ID", r => r.Signal.PositionId?.ToString(CultureInfo.InvariantCulture) ?? ""),
         new("拦截闸门", r => DescribeGate(r.Signal.BlockedBy)),
         new("拦截详情", r => r.Signal.BlockDetail),
 
@@ -82,7 +86,7 @@ public class BlockedSignalCsvLogger {
     private readonly TradeSettingsModel _settings;
 
     // resetOnStart follows the trade CSV's own switch, so both files cover the same runs.
-    public BlockedSignalCsvLogger(string directory, bool resetOnStart, string symbolName, TradeSettingsModel settings) {
+    public StrongSignalCsvLogger(string directory, bool resetOnStart, string symbolName, TradeSettingsModel settings) {
         FilePath = Path.Combine(directory, FileName);
         _symbolName = symbolName;
         _settings = settings;

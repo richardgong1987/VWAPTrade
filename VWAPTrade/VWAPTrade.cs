@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using cAlgo.API;
 
@@ -82,7 +80,7 @@ public class VWAPTrade : Robot {
     private SignalDetector _signalDetector;
     private DepartureTracker _departureTracker;
     private OrderExecutor _orderExecutor;
-    private BlockedSignalCsvLogger _blockedSignalLog;
+    private StrongSignalCsvLogger _strongSignalLog;
     private VwapLines _vwapLines;
     private SignalMarkers _signalMarkers;
 
@@ -131,9 +129,9 @@ public class VWAPTrade : Robot {
         var csvLogger = new TradeCsvLogger(new TradeCsvFile(ResetTradeLogOnStart, ResolveReportsDirectory(), FileName));
         Print("****CSV logger path: {0}", csvLogger.FilePath);
 
-        _blockedSignalLog = new BlockedSignalCsvLogger(Path.GetDirectoryName(csvLogger.FilePath), ResetTradeLogOnStart,
+        _strongSignalLog = new StrongSignalCsvLogger(Path.GetDirectoryName(csvLogger.FilePath), ResetTradeLogOnStart,
             SymbolName, settings);
-        Print("****Debug CSV path: {0}", _blockedSignalLog.FilePath);
+        Print("****Debug CSV path: {0}", _strongSignalLog.FilePath);
 
         var symbolModel = new CAlgoSymbolModel(Symbol);
         var planner = new OrderPlanner(symbolModel, settings);
@@ -207,26 +205,25 @@ public class VWAPTrade : Robot {
     }
 
     private void HandleClosedBarSignal() {
-        IReadOnlyList<SignalModel> signals = _signalDetector.ScanClosedBar();
+        SignalModel signalModel = _signalDetector.DetectOnClosedBar();
 
-        foreach (SignalModel signalModel in signals.Where(signal => signal.BlockedBy == EntryGateModel.None)) {
-            if (!_orderExecutor.ExecuteIfSignal(signalModel))
-                continue;
+        if (signalModel == null)
+            return;
 
+        if (signalModel.BlockedBy == EntryGateModel.None && _orderExecutor.ExecuteIfSignal(signalModel)) {
             _signalMarkers.Draw(signalModel);
             // 开完仓这一段「先离开」就用掉了：下一笔必须重新走一遍离开确认（V2 第 6.3 节）。
             _departureTracker.ResetAfterEntry();
         }
 
-        LogBlockedSignals(signals.Where(signal => signal.BlockedBy != EntryGateModel.None));
+        LogStrongSignal(signalModel);
     }
 
     // Runs after the order, and a file error only prints: debug.csv must never cost a trade or
     // stop the bot (for example while the file is open in another program).
-    private void LogBlockedSignals(IEnumerable<SignalModel> blockedSignals) {
+    private void LogStrongSignal(SignalModel signalModel) {
         try {
-            foreach (SignalModel signalModel in blockedSignals)
-                _blockedSignalLog.Append(signalModel, Server.Time);
+            _strongSignalLog.Append(signalModel, Server.Time);
         } catch (IOException exception) {
             Print("*****Debug CSV not written: {0}", exception.Message);
         }

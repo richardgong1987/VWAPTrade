@@ -26,7 +26,7 @@
     <Compile Include="..\..\VWAPTrade\TradeLog\TradeCsvMigrator.cs" Link="TradeLog\TradeCsvMigrator.cs" />
     <Compile Include="..\..\VWAPTrade\TradeLog\TradeCsvColumns.cs" Link="TradeLog\TradeCsvColumns.cs" />
     <Compile Include="..\..\VWAPTrade\TradeLog\CsvCell.cs" Link="TradeLog\CsvCell.cs" />
-    <Compile Include="..\..\VWAPTrade\TradeLog\BlockedSignalCsvLogger.cs" Link="TradeLog\BlockedSignalCsvLogger.cs" />
+    <Compile Include="..\..\VWAPTrade\TradeLog\StrongSignalCsvLogger.cs" Link="TradeLog\StrongSignalCsvLogger.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapCalculator.cs" Link="Vwap\VwapCalculator.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapStack.cs" Link="Vwap\VwapStack.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\DepartureTracker.cs" Link="Vwap\DepartureTracker.cs" />
