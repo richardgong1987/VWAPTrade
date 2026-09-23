@@ -18,21 +18,29 @@ public static class VwapStack {
 
         SignalSideModel side = ResolveSide(reading.Close, reading.DailyVwap, reading.WeeklyVwap);
 
-        if (side == SignalSideModel.None)
-            return SignalSideModel.None;
+        return FindBlockingGate(reading, filters, side) == EntryGateModel.None ? side : SignalSideModel.None;
+    }
+
+    // The first of gates ①–④ that stops a trade on this side, or None when all of them pass.
+    // ResolveSide is built on this, so the order here is the order trading uses; debug.csv reports
+    // it for patterns on the yellow line that were not traded.
+    public static EntryGateModel FindBlockingGate(VwapStrongReadingModel reading, VwapFilterSettingsModel filters,
+        SignalSideModel side) {
+        if (side == SignalSideModel.None || ResolveSide(reading.Close, reading.DailyVwap, reading.WeeklyVwap) != side)
+            return EntryGateModel.Stack;
 
         VwapStrongMetricsModel metrics = VwapStrongMetrics.Compute(reading, side);
 
         if (!PassesFilter(metrics.GapXSelected, filters.GapMin))
-            return SignalSideModel.None;
+            return EntryGateModel.GapMin;
 
         if (!PassesFilter(metrics.SlopeRateXSelected, filters.SlopeRateMin))
-            return SignalSideModel.None;
+            return EntryGateModel.SlopeRateMin;
 
         if (!PassesGapChangeFilter(metrics.GapChangeRateX30Selected, filters))
-            return SignalSideModel.None;
+            return EntryGateModel.GapChange;
 
-        return side;
+        return EntryGateModel.None;
     }
 
     // 开关关着就完全放行，连数值可不可用都不看；开着时算不出数值一律拒绝（V1.1 第 4 节）。

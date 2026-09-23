@@ -81,6 +81,37 @@ Every trade is written to a CSV in `~/Documents`, in a folder picked by how the 
 
 The full path is printed in the cTrader log at start-up, on the `CSV logger path` line.
 
+### debug.csv: signals that didn't trade
+
+`debug.csv` sits next to the trade CSV and answers "why didn't this trade?". It gets one row for
+every candle pattern that touched the daily VWAP (the yellow line) on a closed bar but didn't
+become a trade. Both sides are checked, so a short pattern in a long-only stack shows up too.
+
+Each row has:
+
+- **The signal:** bar time, decision time, whether that time is inside the order window
+  (`在开仓时段`), symbol, signal name (e.g. `S_Eng_1`) and side.
+- **Why it was stopped:** `拦截闸门` names the first gate that blocked it, and `拦截详情` adds
+  the planner's reject reason or the broker's error when there is one.
+- **What the gates compared:** close, high, low, pattern stop, VWAPs, both ATRs, and every
+  filter reading next to its threshold (GapX, SlopeRateX, gap change, Departure, trade direction).
+
+| `拦截闸门` | Gate |
+| --- | --- |
+| 排列不符 | Close / daily / weekly are not lined up for this side. |
+| 间距不足 | GapX below `VWAP间距最小值`. |
+| 速度不足 | SlopeRateX below `VWAP斜率速度最小值`. |
+| 扩口变化超出区间 | Gap change outside its range. |
+| 未完成离开确认 | Price hasn't left the daily VWAP and come back yet. |
+| 不在开仓时段 | Outside the order window. |
+| 交易方向不允许 | `交易方向` forbids this side. |
+| 已有持仓 | A position is already open. |
+| 下单方案被拒 | Sizing failed, e.g. volume below the broker minimum. |
+| 券商拒单 | The broker refused the order. |
+
+`启动时清空交易记录CSV` resets `debug.csv` together with the trade CSV. A file written by a build
+with different columns starts over instead of being upgraded.
+
 ## Build and test
 
 Needs the .NET 10 SDK and cTrader desktop.

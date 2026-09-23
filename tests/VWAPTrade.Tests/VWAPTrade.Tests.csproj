@@ -25,6 +25,8 @@
     <Compile Include="..\..\VWAPTrade\Risk\RiskBudget.cs" Link="Risk\RiskBudget.cs" />
     <Compile Include="..\..\VWAPTrade\TradeLog\TradeCsvMigrator.cs" Link="TradeLog\TradeCsvMigrator.cs" />
     <Compile Include="..\..\VWAPTrade\TradeLog\TradeCsvColumns.cs" Link="TradeLog\TradeCsvColumns.cs" />
+    <Compile Include="..\..\VWAPTrade\TradeLog\CsvCell.cs" Link="TradeLog\CsvCell.cs" />
+    <Compile Include="..\..\VWAPTrade\TradeLog\BlockedSignalCsvLogger.cs" Link="TradeLog\BlockedSignalCsvLogger.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapCalculator.cs" Link="Vwap\VwapCalculator.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\VwapStack.cs" Link="Vwap\VwapStack.cs" />
     <Compile Include="..\..\VWAPTrade\Vwap\DepartureTracker.cs" Link="Vwap\DepartureTracker.cs" />
@@ -40,6 +42,7 @@
        only Models/ file that references cAlgo.API. -->
   <ItemGroup Label="Models under test">
     <Compile Include="..\..\VWAPTrade\Models\SignalModel.cs" Link="Models\SignalModel.cs" />
+    <Compile Include="..\..\VWAPTrade\Models\EntryGateModel.cs" Link="Models\EntryGateModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\VwapSampleModel.cs" Link="Models\VwapSampleModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\TradeSettingsModel.cs" Link="Models\TradeSettingsModel.cs" />
     <Compile Include="..\..\VWAPTrade\Models\VwapStrongReadingModel.cs" Link="Models\VwapStrongReadingModel.cs" />

@@ -94,7 +94,7 @@ public static class TradeCsvColumns {
         string[] cells = new string[Columns.Count];
 
         for (int i = 0; i < Columns.Count; i++) {
-            cells[i] = Escape(select(Columns[i]));
+            cells[i] = CsvCell.Escape(select(Columns[i]));
         }
 
         return string.Join(",", cells);
@@ -136,7 +136,7 @@ public static class TradeCsvColumns {
     // 指标读数：可以是负数（逆向斜率、缩口），所以不能套用「≤0 留空」。
     // 只有取不到值（NaN/无穷/没有快照）才留空 —— 绝不写成 0，0 是一个合法读数。
     private static TradeCsvColumn Reading(string name, Func<TradeRecordModel, double?> read) =>
-        new(name, record => FormatReading(read(record)));
+        new(name, record => CsvCell.Number(read(record)));
 
     // 回看根数：没有快照的行（例如更早版本留下的持仓）留空，不要写成 0 —— 0 不是合法的 N。
     private static TradeCsvColumn BarCount(string name, Func<TradeRecordModel, int?> read) =>
@@ -146,22 +146,6 @@ public static class TradeCsvColumns {
     // 取不到（闸门关着、或旧版本留下的行）才留空。
     private static TradeCsvColumn Whole(string name, Func<TradeRecordModel, int?> read) =>
         new(name, record => read(record) is int value ? value.ToString(CultureInfo.InvariantCulture) : "");
-
-    private static string FormatReading(double? value) {
-        if (!value.HasValue || double.IsNaN(value.Value) || double.IsInfinity(value.Value))
-            return "";
-
-        return value.Value.ToString("0.######", CultureInfo.InvariantCulture);
-    }
-
-    private static string Escape(string value) {
-        if (string.IsNullOrEmpty(value))
-            return "";
-
-        bool mustQuote = value.Contains(",") || value.Contains("\"") || value.Contains("\n") || value.Contains("\r");
-
-        return mustQuote ? "\"" + value.Replace("\"", "\"\"") + "\"" : value;
-    }
 
     private sealed class TradeCsvColumn {
         public TradeCsvColumn(string name, Func<TradeRecordModel, string> read) {

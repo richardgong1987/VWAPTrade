@@ -32,4 +32,11 @@ public class SignalModel {
     public int BarIndex { get; set; }
 
     public DateTime BarTime { get; set; }
+
+    // The first gate that stopped this signal; None = it passed them all. SignalDetector fills in
+    // the signal gates, OrderExecutor the order gates.
+    public EntryGateModel BlockedBy { get; set; }
+
+    // Extra facts for the gates that have them: the planner's reject reason, the broker's error.
+    public string BlockDetail { get; set; } = "";
 }

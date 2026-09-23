@@ -52,14 +52,14 @@ public class OrderExecutor {
         // 已经持有的仓位不受影响，照常由止损/止盈了结。
         if (!TradingSession.IsInSession(_robot.Server.Time)) {
             _robot.Print("*****Order skipped | Outside the trading session. Time: {0}", _robot.Server.Time);
-            return false;
+            return Block(signalModel, EntryGateModel.Session);
         }
 
         // 方向许可：下单前的最后一道闸门。放在算仓位之前，不给一个注定要拒的信号做定价。
         if (!TradeDirectionGate.IsAllowed(_settings.TradeDirectionMode, signalModel.Level.Side)) {
             _robot.Print("*****Order skipped | TradeDirection {0} blocks a {1} signal.", _settings.TradeDirectionMode,
                 signalModel.Level.Side);
-            return false;
+            return Block(signalModel, EntryGateModel.Direction);
         }
 
         string label = _strategyLabelPrefix + signalModel.Level.Name;
@@ -67,18 +67,25 @@ public class OrderExecutor {
         if (HasPositionForLevel(label)) {
             _robot.Print("*****Order skipped | Level {0} already has an open position on symbol: {1}", signalModel.Level.Name,
                 _symbolName);
-            return false;
+            return Block(signalModel, EntryGateModel.OpenPosition);
         }
 
         OrderPlanModel planModel = _planner.CreatePlan(signalModel, _robot.Account.Equity);
 
         if (!planModel.IsValid) {
             _robot.Print("*****Order rejected | Level: {0}, Reason: {1}", signalModel.Level.Name, planModel.RejectReason);
-            return false;
+            return Block(signalModel, EntryGateModel.OrderPlan, planModel.RejectReason);
         }
 
         FillOrderContext(planModel, signalModel, label);
-        return ExecutePlan(planModel);
+        return ExecutePlan(planModel, signalModel);
+    }
+
+    // Records the gate on the signal so debug.csv can say why it never became a trade.
+    private static bool Block(SignalModel signalModel, EntryGateModel gate, string detail = "") {
+        signalModel.BlockedBy = gate;
+        signalModel.BlockDetail = detail ?? "";
+        return false;
     }
 
     // 方案本身只有价格和数量；这里补上它属于哪个信号、以及当时生效的设置，好一路带进 CSV。
@@ -99,7 +106,7 @@ public class OrderExecutor {
         return _robot.Positions.Any(position => position.SymbolName == _symbolName && position.Label == label);
     }
 
-    private bool ExecutePlan(OrderPlanModel planModel) {
+    private bool ExecutePlan(OrderPlanModel planModel, SignalModel signalModel) {
         _robot.Print(
             "*****Order plan | Level: {0}, Side: {1}, Entry: {2}, Stop: {3}, TakeProfit: {4}, RiskPrice: {5}, StopLossPips: {6}, RiskMoney: {7}, EstimatedRiskMoney: {8}, Lots: {9}, VolumeUnits: {10}",
             planModel.KeyLevel, planModel.DirectionModel, planModel.EntryPrice, planModel.StopPrice, planModel.TakeProfitPrice,
@@ -111,7 +118,7 @@ public class OrderExecutor {
 
         if (!result.IsSuccessful) {
             _robot.Print("*****Order failed | Error: {0}", result.Error);
-            return false;
+            return Block(signalModel, EntryGateModel.Broker, result.Error.ToString());
         }
 
         _robot.Print("*****Order submitted | Label: {0}", planModel.Label);
