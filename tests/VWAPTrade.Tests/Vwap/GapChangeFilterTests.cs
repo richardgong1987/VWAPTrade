@@ -26,7 +26,7 @@ namespace VWAPTrade.Tests.Vwap {
 
         private static VwapFilterSettingsModel Filters(bool use = false, double min = 0.0, double max = 0.0) =>
             new(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: use, gapChangeRateMin: min, gapChangeRateMax: max,
-                slopeEfficiencyMin: 0.0);
+                slopeEfficiencyMin: 0.0, expansionEfficiencyMin: 0.0);
 
         // Only the gap change is ever switched on here, so a failure can only be GapChange.
         private static EntryGateModel FailedFilter(VwapStrongReadingModel reading, VwapFilterSettingsModel filters) =>

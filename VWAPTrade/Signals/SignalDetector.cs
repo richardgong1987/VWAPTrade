@@ -8,7 +8,8 @@ namespace cAlgo.Robots;
 // candle pattern for that side touching the daily VWAP (LevelPatternMatcher) is a signal, and it
 // comes back with the first signal filter it fails (FailedFilter):
 //
-//   distance/speed/gap change/slope efficiency (VwapStack) → recent closes on the opposite daily-VWAP side
+//   distance/speed/gap change/slope and expansion efficiency (VwapStack)
+//   → recent closes on the opposite daily-VWAP side
 //   → leave first, then pull back (DepartureTracker)
 //
 // Whether it trades is OrderExecutor's call. This class only reads data and orders the filters;

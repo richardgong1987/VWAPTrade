@@ -37,7 +37,7 @@ public static class StrongSignalCsvColumns {
         new("DailyVWAP_Lookback", r => CsvCell.Number(r.Signal.Strong?.DailyVwapBefore)),
         new("WeeklyVWAP_Lookback", r => CsvCell.Number(r.Signal.Strong?.WeeklyVwapBefore)),
 
-        // ── Filters 2–5, each reading beside its threshold ──────────────────
+        // ── Filters 2–6, each reading beside its threshold ──────────────────
         // Thresholds are always written, even when the filter is off: 0 in GapMin is how the row
         // says that filter did not take part.
         new("SelectedATRPeriod", r => r.Signal.Strong?.SelectedAtrPeriod.ToString() ?? ""),
@@ -54,14 +54,16 @@ public static class StrongSignalCsvColumns {
         new("GapChangeRateMax", r => CsvCell.Number(r.Settings.VwapFilters.GapChangeRateMax)),
         new("SlopeEfficiency", r => CsvCell.Number(r.Signal.Metrics?.SlopeEfficiency)),
         new("SlopeEfficiencyMin", r => CsvCell.Number(r.Settings.VwapFilters.SlopeEfficiencyMin)),
+        new("ExpansionEfficiency", r => CsvCell.Number(r.Signal.Metrics?.ExpansionEfficiency)),
+        new("ExpansionEfficiencyMin", r => CsvCell.Number(r.Settings.VwapFilters.ExpansionEfficiencyMin)),
 
-        // ── Filter 6: previous closes on the daily VWAP's opposite side ───────
+        // ── Filter 7: previous closes on the daily VWAP's opposite side ───────
         new("OppositeDailyVwapLookbackBars", r => Whole(r.Settings.OppositeDailyVwap?.LookbackBars)),
         new("OppositeDailyVwapBlockCount", r => Whole(r.Settings.OppositeDailyVwap?.BlockCount)),
         new("OppositeDailyVwapCheckedBars", r => Whole(EnabledOppositeDailyVwap(r)?.CheckedBars)),
         new("OppositeDailyVwapCount", r => Whole(EnabledOppositeDailyVwap(r)?.OppositeSideCount)),
 
-        // ── Filter 7: Departure ──────────────────────────────────────────────
+        // ── Filter 8: Departure ──────────────────────────────────────────────
         // With the gate off the tracker never runs, so its counters would read 0 and look like a
         // real state. They are left blank then; DepartureMin = 0 says the gate was off.
         new("DepartureMin", r => CsvCell.Number(r.Signal.Departure?.Settings?.DepartureMin)),
@@ -88,6 +90,7 @@ public static class StrongSignalCsvColumns {
             EntryGateModel.SlopeRateMin => "速度不足",
             EntryGateModel.GapChange => "扩口变化超出区间",
             EntryGateModel.SlopeEfficiency => "斜率效率不足",
+            EntryGateModel.ExpansionEfficiency => "扩口效率不足",
             EntryGateModel.OppositeDailyVwap => "黄线反向侧K线过多",
             EntryGateModel.Departure => "未完成离开确认",
             EntryGateModel.Session => "不在开仓时段",

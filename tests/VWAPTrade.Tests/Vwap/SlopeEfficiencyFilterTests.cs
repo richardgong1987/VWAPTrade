@@ -26,7 +26,7 @@ namespace VWAPTrade.Tests.Vwap {
         // Only slope efficiency is ever switched on here, so a failure can only be SlopeEfficiency.
         private static VwapFilterSettingsModel Filters(double slopeEfficiencyMin) =>
             new(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: false, gapChangeRateMin: 0.0, gapChangeRateMax: 0.0,
-                slopeEfficiencyMin: slopeEfficiencyMin);
+                slopeEfficiencyMin: slopeEfficiencyMin, expansionEfficiencyMin: 0.0);
 
         private static VwapStrongMetricsModel Metrics(VwapStrongReadingModel reading, SignalSideModel side) =>
             VwapStrongMetrics.Compute(reading, side);

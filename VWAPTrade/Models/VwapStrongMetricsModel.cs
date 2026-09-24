@@ -50,4 +50,8 @@ public class VwapStrongMetricsModel {
     // SlopeRateX_Selected / GapX_Selected: how fast the daily VWAP still moves for the gap it has
     // already opened. A low value is an ageing trend, wide but slowing (docs/VWAP.docx).
     public double SlopeEfficiency { get; set; } = double.NaN;
+
+    // GapChangeRateX30_Selected / GapX_Selected: how fast the gap still widens for how wide it
+    // already is. Low means still widening, but too slowly for a gap that size (docs/VWAP2.docx).
+    public double ExpansionEfficiency { get; set; } = double.NaN;
 }

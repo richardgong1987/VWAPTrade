@@ -37,8 +37,8 @@ public class SignalModel {
 
     public DateTime BarTime { get; set; }
 
-    // The first signal filter (gap, speed, gap change, slope efficiency, opposite-side recovery,
-    // Departure) this signal fails, judged from its own readings; None = it passes them all and may
-    // go on to the order gates.
+    // The first signal filter (gap, speed, gap change, slope efficiency, expansion efficiency,
+    // opposite-side recovery, Departure) this signal fails, judged from its own readings; None = it
+    // passes them all and may go on to the order gates.
     public EntryGateModel FailedFilter { get; set; }
 }

@@ -11,6 +11,7 @@ namespace cAlgo.Robots;
 //   SlopeRawX    = SlopeRaw / ATR
 //   SlopeRateX30 = SlopeRawX × 6/N
 //   SlopeEfficiency = SlopeRateX30_Selected / GapX_Selected   (docs/VWAP.docx)
+//   ExpansionEfficiency = GapChangeRateX30_Selected / GapX_Selected   (docs/VWAP2.docx)
 //
 // 6/N 不是新的交易条件，只是单位换算：M5 上 6 根 = 30 分钟，把任意 Lookback 的累计变化量
 // 折算成「等效 30 分钟变化速度」，N 不同的参数组才能共用同一个 SlopeRateMin。
@@ -57,6 +58,9 @@ public static class VwapStrongMetrics {
         metrics.GapChangeRateX30M5 = Multiply(metrics.GapChangeRawXM5, rateFactor);
         metrics.GapChangeRateX30H1 = Multiply(metrics.GapChangeRawXH1, rateFactor);
         metrics.GapChangeRateX30Selected = isM5 ? metrics.GapChangeRateX30M5 : metrics.GapChangeRateX30H1;
+
+        // Same shape as SlopeEfficiency: the ATR cancels out, and a gap of 0 or less gives NaN.
+        metrics.ExpansionEfficiency = Divide(metrics.GapChangeRateX30Selected, metrics.GapXSelected);
 
         // 旧字段保持原定义：未做 30 分钟标准化的那一版。
         metrics.GapChangeX = isM5 ? metrics.GapChangeRawXM5 : metrics.GapChangeRawXH1;

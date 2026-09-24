@@ -1,15 +1,16 @@
 namespace cAlgo.Robots;
 
-// Thresholds for the four VWAP filters. Pure data, judged by VwapStack.
+// Thresholds for the five VWAP filters. Pure data, judged by VwapStack.
 public class VwapFilterSettingsModel {
     public VwapFilterSettingsModel(double gapMin, double slopeRateMin, bool useGapChangeFilter, double gapChangeRateMin,
-        double gapChangeRateMax, double slopeEfficiencyMin) {
+        double gapChangeRateMax, double slopeEfficiencyMin, double expansionEfficiencyMin) {
         GapMin = gapMin;
         SlopeRateMin = slopeRateMin;
         UseGapChangeFilter = useGapChangeFilter;
         GapChangeRateMin = gapChangeRateMin;
         GapChangeRateMax = gapChangeRateMax;
         SlopeEfficiencyMin = slopeEfficiencyMin;
+        ExpansionEfficiencyMin = expansionEfficiencyMin;
     }
 
     // 0 = 关闭这道闸门。
@@ -29,6 +30,10 @@ public class VwapFilterSettingsModel {
     // Minimum SlopeRateX_Selected / GapX_Selected (docs/VWAP.docx). 0 = off. 0.01 is only the
     // centre still to be validated, so it stays a parameter.
     public double SlopeEfficiencyMin { get; }
+
+    // Minimum GapChangeRateX30_Selected / GapX_Selected (docs/VWAP2.docx). 0 = off, whether or not
+    // the gap-change range filter is on. 0.0045 is only the centre still to be validated.
+    public double ExpansionEfficiencyMin { get; }
 
     // Min > Max 是参数填错，启动时报错停止，绝不静默对调（V1.1 第 4 节）。
     public bool IsGapChangeRangeInverted => UseGapChangeFilter && GapChangeRateMin > GapChangeRateMax;

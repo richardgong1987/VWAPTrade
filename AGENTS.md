@@ -19,7 +19,9 @@ Once per closed bar:
    `LevelPatternMatcher` with `HanJinSignals26`.
 3. **Signal filters**, in order: gap (`GapMin`), speed (`SlopeRateMin`), gap change (optional
    range), slope efficiency (`SlopeRateX_Selected / GapX_Selected ≥ SlopeEfficiencyMin`,
-   `docs/VWAP.docx`), opposite-side recovery (configured preceding same-day closes below daily VWAP block a
+   `docs/VWAP.docx`), expansion efficiency
+   (`GapChangeRateX30_Selected / GapX_Selected ≥ ExpansionEfficiencyMin`, `docs/VWAP2.docx`),
+   opposite-side recovery (configured preceding same-day closes below daily VWAP block a
    long; closes above it block a short), Departure (price left the daily VWAP and came back). The
    first one that fails is recorded as `SignalModel.FailedFilter`.
 4. **Order gates**, in order: order window (Tue–Fri 10:30 → 06:00), trade direction, open

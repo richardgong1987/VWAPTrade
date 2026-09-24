@@ -8,11 +8,12 @@ namespace VWAPTrade.Tests.Vwap {
     // The stack itself (Strong or not) is VwapStackTests.
     public class VwapStackFilterTests {
         // Long: gap = 4.0, slope over N=6 = 2.0. H1 ATR 8 -> GapX 0.5, SlopeRawX 0.25, rate 0.25,
-        // gap change 1.0 / 8 = 0.125, slope efficiency 0.25 / 0.5 = 0.5.
+        // gap change 1.0 / 8 = 0.125, slope efficiency 0.25 / 0.5 = 0.5, expansion efficiency 0.125 / 0.5 = 0.25.
         private static VwapFilterSettingsModel Filters(double gapMin = 0.0, double slopeRateMin = 0.0,
             bool useGapChangeFilter = false, double gapChangeRateMin = 0.0, double gapChangeRateMax = 0.0,
-            double slopeEfficiencyMin = 0.0) =>
-            new(gapMin, slopeRateMin, useGapChangeFilter, gapChangeRateMin, gapChangeRateMax, slopeEfficiencyMin);
+            double slopeEfficiencyMin = 0.0, double expansionEfficiencyMin = 0.0) =>
+            new(gapMin, slopeRateMin, useGapChangeFilter, gapChangeRateMin, gapChangeRateMax, slopeEfficiencyMin,
+                expansionEfficiencyMin);
 
         private static VwapStrongReadingModel Long(double atrH1 = 8.0, double dailyBefore = 102.0, int lookbackN = 6) =>
             new() {
@@ -90,15 +91,23 @@ namespace VWAPTrade.Tests.Vwap {
             Assert.Equal(EntryGateModel.GapChange,
                 FailedFilter(Long(), Filters(useGapChangeFilter: true, gapChangeRateMin: 0.2, gapChangeRateMax: 0.3)));
             Assert.Equal(EntryGateModel.SlopeEfficiency, FailedFilter(Long(), Filters(slopeEfficiencyMin: 0.6)));
+            Assert.Equal(EntryGateModel.ExpansionEfficiency, FailedFilter(Long(), Filters(expansionEfficiencyMin: 0.3)));
         }
 
         [Fact]
         public void when_several_filters_fail_the_first_in_trading_order_is_named() {
             // debug.csv reports this gate, so it must be the one trading actually stopped at.
             VwapFilterSettingsModel allFail = Filters(gapMin: 0.6, slopeRateMin: 0.3, useGapChangeFilter: true,
-                gapChangeRateMin: 0.2, gapChangeRateMax: 0.3, slopeEfficiencyMin: 0.6);
+                gapChangeRateMin: 0.2, gapChangeRateMax: 0.3, slopeEfficiencyMin: 0.6, expansionEfficiencyMin: 0.3);
 
             Assert.Equal(EntryGateModel.GapMin, FailedFilter(Long(), allFail));
+        }
+
+        [Fact]
+        public void expansion_efficiency_is_checked_after_slope_efficiency() {
+            VwapFilterSettingsModel both = Filters(slopeEfficiencyMin: 0.6, expansionEfficiencyMin: 0.3);
+
+            Assert.Equal(EntryGateModel.SlopeEfficiency, FailedFilter(Long(), both));
         }
 
         [Fact]

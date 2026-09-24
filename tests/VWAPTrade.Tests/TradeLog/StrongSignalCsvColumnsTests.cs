@@ -69,7 +69,7 @@ namespace VWAPTrade.Tests.TradeLog {
             SignalModel signal = ShortEngulfing();
             signal.Metrics.SlopeEfficiency = 0.008675;
             var filters = new VwapFilterSettingsModel(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: false,
-                gapChangeRateMin: 0.0, gapChangeRateMax: 0.0, slopeEfficiencyMin: 0.01);
+                gapChangeRateMin: 0.0, gapChangeRateMax: 0.0, slopeEfficiencyMin: 0.01, expansionEfficiencyMin: 0.0);
 
             string line = Line(signal, EntryOutcomeModel.Blocked(EntryGateModel.SlopeEfficiency),
                 settings: TestSettings.Create(vwapFilters: filters));
@@ -80,9 +80,27 @@ namespace VWAPTrade.Tests.TradeLog {
         }
 
         [Fact]
-        public void a_slope_efficiency_filter_that_is_off_still_writes_its_zero_threshold() {
-            // 0 in SlopeEfficiencyMin is how the row says the filter did not take part.
-            Assert.Equal("0", Cell(Line(ShortEngulfing(), NotOrdered), "SlopeEfficiencyMin"));
+        public void an_expansion_efficiency_block_is_named_and_its_reading_sits_beside_the_threshold() {
+            SignalModel signal = ShortEngulfing();
+            signal.Metrics.ExpansionEfficiency = 0.004;
+            var filters = new VwapFilterSettingsModel(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: false,
+                gapChangeRateMin: 0.0, gapChangeRateMax: 0.0, slopeEfficiencyMin: 0.0, expansionEfficiencyMin: 0.0045);
+
+            string line = Line(signal, EntryOutcomeModel.Blocked(EntryGateModel.ExpansionEfficiency),
+                settings: TestSettings.Create(vwapFilters: filters));
+
+            Assert.Equal("扩口效率不足", Cell(line, "拦截闸门"));
+            Assert.Equal("0.004", Cell(line, "ExpansionEfficiency"));
+            Assert.Equal("0.0045", Cell(line, "ExpansionEfficiencyMin"));
+        }
+
+        [Fact]
+        public void an_efficiency_filter_that_is_off_still_writes_its_zero_threshold() {
+            // 0 in the threshold is how the row says the filter did not take part.
+            string line = Line(ShortEngulfing(), NotOrdered);
+
+            Assert.Equal("0", Cell(line, "SlopeEfficiencyMin"));
+            Assert.Equal("0", Cell(line, "ExpansionEfficiencyMin"));
         }
 
         [Fact]

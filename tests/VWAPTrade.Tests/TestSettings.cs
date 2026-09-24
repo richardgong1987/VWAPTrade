@@ -18,6 +18,6 @@ namespace VWAPTrade.Tests {
         // 全部过滤关闭：被测的几何与仓位计算不该被闸门影响。
         public static VwapFilterSettingsModel NoFilters() =>
             new(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: false, gapChangeRateMin: 0.0, gapChangeRateMax: 0.0,
-                slopeEfficiencyMin: 0.0);
+                slopeEfficiencyMin: 0.0, expansionEfficiencyMin: 0.0);
     }
 }
