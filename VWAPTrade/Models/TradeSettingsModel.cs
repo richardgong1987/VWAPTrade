@@ -33,7 +33,7 @@ public class TradeSettingsModel {
     // 保本止损落在开仓价顺盈利方向偏移这么多个 tick 的位置，别正好压在开仓价上。
     public int BreakevenOffsetTicks { get; }
 
-    // 距离、速度、扩口三道过滤的阈值。
+    // Thresholds for the distance, speed, gap-change and slope-efficiency filters.
     public VwapFilterSettingsModel VwapFilters { get; }
 
     // 算斜率往回看几根 K 线。M5 上 6 根 = 30 分钟。必须 ≥ 1，在 OnStart 里校验。

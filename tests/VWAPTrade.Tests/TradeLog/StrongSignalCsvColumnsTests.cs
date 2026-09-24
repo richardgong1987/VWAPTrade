@@ -25,10 +25,11 @@ namespace VWAPTrade.Tests.TradeLog {
             return signal;
         }
 
-        private static string Line(SignalModel signal, EntryOutcomeModel outcome, DateTime? decisionTime = null) =>
+        private static string Line(SignalModel signal, EntryOutcomeModel outcome, DateTime? decisionTime = null,
+            TradeSettingsModel settings = null) =>
             StrongSignalCsvColumns.ToCsvLine(new StrongSignalRecordModel {
                 Signal = signal, Outcome = outcome, DecisionTime = decisionTime ?? TuesdayNoon, Symbol = "XAUUSD",
-                Settings = TestSettings.NoStopOffset()
+                Settings = settings ?? TestSettings.NoStopOffset()
             });
 
         private static string Cell(string line, string column) =>
@@ -61,6 +62,27 @@ namespace VWAPTrade.Tests.TradeLog {
         [Fact]
         public void the_opposite_side_daily_vwap_gate_has_a_clear_debug_name() {
             Assert.Equal("黄线反向侧K线过多", StrongSignalCsvColumns.DescribeGate(EntryGateModel.OppositeDailyVwap));
+        }
+
+        [Fact]
+        public void a_slope_efficiency_block_is_named_and_its_reading_sits_beside_the_threshold() {
+            SignalModel signal = ShortEngulfing();
+            signal.Metrics.SlopeEfficiency = 0.008675;
+            var filters = new VwapFilterSettingsModel(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: false,
+                gapChangeRateMin: 0.0, gapChangeRateMax: 0.0, slopeEfficiencyMin: 0.01);
+
+            string line = Line(signal, EntryOutcomeModel.Blocked(EntryGateModel.SlopeEfficiency),
+                settings: TestSettings.Create(vwapFilters: filters));
+
+            Assert.Equal("斜率效率不足", Cell(line, "拦截闸门"));
+            Assert.Equal("0.008675", Cell(line, "SlopeEfficiency"));
+            Assert.Equal("0.01", Cell(line, "SlopeEfficiencyMin"));
+        }
+
+        [Fact]
+        public void a_slope_efficiency_filter_that_is_off_still_writes_its_zero_threshold() {
+            // 0 in SlopeEfficiencyMin is how the row says the filter did not take part.
+            Assert.Equal("0", Cell(Line(ShortEngulfing(), NotOrdered), "SlopeEfficiencyMin"));
         }
 
         [Fact]

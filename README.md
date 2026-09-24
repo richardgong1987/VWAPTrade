@@ -28,14 +28,17 @@ Strategy spec: `docs/VWAP_Strong_V2.pdf`. TradingView reference indicator for th
 3. **Speed.** The daily VWAP's slope, scaled to 30 minutes and measured in ATR, must reach a
    minimum.
 4. **Gap change.** The change in that gap must sit inside a set range. Optional.
-5. **Opposite-side recovery.** Count the preceding closed bars in the same daily-VWAP period. For
+5. **Slope efficiency.** The speed from gate 3 divided by the gap from gate 2 must reach a
+   minimum. It catches a trend that has already run far but whose daily VWAP has gone flat.
+   Spec: `docs/VWAP.docx`.
+6. **Opposite-side recovery.** Count the preceding closed bars in the same daily-VWAP period. For
    a long, closes below the daily VWAP count; for a short, closes above it count. If at least the
    configured number are on that opposite side, do not enter. The signal bar itself is excluded.
-6. **Departure.** The price must first move clearly away from the daily VWAP before a pattern
+7. **Departure.** The price must first move clearly away from the daily VWAP before a pattern
    touching it may be traded.
-7. **Direction.** All, long only, or short only.
+8. **Direction.** All, long only, or short only.
 
-Gates 2, 3 and 6 are off when their threshold is 0. Gate 5 is off when its block count is 0.
+Gates 2, 3, 5 and 7 are off when their threshold is 0. Gate 6 is off when its block count is 0.
 Gate 4 has its own on/off switch.
 
 **Order.** The stop sits a few ticks beyond the pattern's own stop level. The target is a fixed
@@ -62,11 +65,12 @@ The labels are the ones shown in cTrader.
 | ATR归一周期 | Which ATR14 the gates divide by: M5 or H1. Both are always logged. |
 | 扩口变化过滤 | Turns gate 4 on. |
 | 扩口变化最小值 / 最大值 | Gate 4: allowed range for the 30-minute-scaled gap change. |
+| 斜率效率最小值 | Gate 5: minimum `SlopeRateX_Selected / GapX_Selected`. 0 = off. 0.01 is the candidate still being validated. |
 | **反向黄线过滤** | |
 | 信号前回看K线数 | How many closed bars before the signal to inspect, without crossing the 06:00 daily-VWAP reset. |
-| 反向侧K线阻断根数 | Gate 5: block a long when this many closes are below the yellow daily VWAP, or a short when this many are above it. 0 = off. |
+| 反向侧K线阻断根数 | Gate 6: block a long when this many closes are below the yellow daily VWAP, or a short when this many are above it. 0 = off. |
 | **Departure离开确认** | |
-| 离开最小距离 | Gate 6: how far, in ATR, the close must move away from the daily VWAP. 0 = off. |
+| 离开最小距离 | Gate 7: how far, in ATR, the close must move away from the daily VWAP. 0 = off. |
 | 离开连续确认K线数 | Consecutive closes needed to confirm that move. |
 | 离开后最大等待K线数 | Bars to wait for the pullback after that. 0 = no limit. |
 | **交易方向** | |
@@ -94,8 +98,9 @@ The full path is printed in the cTrader log at start-up, on the `CSV logger path
 traded or not:
 
 - **Strong:** the stack alone points one way: `close > daily > weekly` (long) or
-  `close < daily < weekly` (short). The distance, speed, gap-change, opposite-side recovery and
-  Departure filters do not decide Strong; they are gates the row reports on.
+  `close < daily < weekly` (short). The distance, speed, gap-change, slope-efficiency,
+  opposite-side recovery and Departure filters do not decide Strong; they are gates the row
+  reports on.
 - **Signal:** a candle pattern for that side (e.g. a bearish engulfing on a short bar) touches
   the daily VWAP, the yellow line.
 
@@ -108,14 +113,15 @@ Each row has:
   first gate that blocked it, and `拦截详情`, the planner's reject reason or the broker's error
   when there is one.
 - **What the gates compared:** close, high, low, pattern stop, VWAPs, both ATRs, and every
-  filter reading next to its threshold (GapX, SlopeRateX, gap change, previous closes on the
-  daily VWAP's opposite side, Departure, trade direction).
+  filter reading next to its threshold (GapX, SlopeRateX, gap change, SlopeEfficiency, previous
+  closes on the daily VWAP's opposite side, Departure, trade direction).
 
 | `拦截闸门` | Gate |
 | --- | --- |
 | 间距不足 | GapX below `VWAP间距最小值`. |
 | 速度不足 | SlopeRateX below `VWAP斜率速度最小值`. |
 | 扩口变化超出区间 | Gap change outside its range. |
+| 斜率效率不足 | SlopeEfficiency below `斜率效率最小值`, or no usable value (e.g. GapX ≤ 0). |
 | 黄线反向侧K线过多 | A long had at least the configured number of preceding closes below the daily VWAP, or a short had that many above it. |
 | 未完成离开确认 | Price hasn't left the daily VWAP and come back yet. |
 | 不在开仓时段 | Outside the order window. |

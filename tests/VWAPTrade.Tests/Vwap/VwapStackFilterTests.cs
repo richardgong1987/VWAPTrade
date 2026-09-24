@@ -8,10 +8,11 @@ namespace VWAPTrade.Tests.Vwap {
     // The stack itself (Strong or not) is VwapStackTests.
     public class VwapStackFilterTests {
         // Long: gap = 4.0, slope over N=6 = 2.0. H1 ATR 8 -> GapX 0.5, SlopeRawX 0.25, rate 0.25,
-        // gap change 1.0 / 8 = 0.125.
+        // gap change 1.0 / 8 = 0.125, slope efficiency 0.25 / 0.5 = 0.5.
         private static VwapFilterSettingsModel Filters(double gapMin = 0.0, double slopeRateMin = 0.0,
-            bool useGapChangeFilter = false, double gapChangeRateMin = 0.0, double gapChangeRateMax = 0.0) =>
-            new(gapMin, slopeRateMin, useGapChangeFilter, gapChangeRateMin, gapChangeRateMax);
+            bool useGapChangeFilter = false, double gapChangeRateMin = 0.0, double gapChangeRateMax = 0.0,
+            double slopeEfficiencyMin = 0.0) =>
+            new(gapMin, slopeRateMin, useGapChangeFilter, gapChangeRateMin, gapChangeRateMax, slopeEfficiencyMin);
 
         private static VwapStrongReadingModel Long(double atrH1 = 8.0, double dailyBefore = 102.0, int lookbackN = 6) =>
             new() {
@@ -88,15 +89,25 @@ namespace VWAPTrade.Tests.Vwap {
             Assert.Equal(EntryGateModel.SlopeRateMin, FailedFilter(Long(), Filters(slopeRateMin: 0.3)));
             Assert.Equal(EntryGateModel.GapChange,
                 FailedFilter(Long(), Filters(useGapChangeFilter: true, gapChangeRateMin: 0.2, gapChangeRateMax: 0.3)));
+            Assert.Equal(EntryGateModel.SlopeEfficiency, FailedFilter(Long(), Filters(slopeEfficiencyMin: 0.6)));
         }
 
         [Fact]
         public void when_several_filters_fail_the_first_in_trading_order_is_named() {
             // debug.csv reports this gate, so it must be the one trading actually stopped at.
             VwapFilterSettingsModel allFail = Filters(gapMin: 0.6, slopeRateMin: 0.3, useGapChangeFilter: true,
-                gapChangeRateMin: 0.2, gapChangeRateMax: 0.3);
+                gapChangeRateMin: 0.2, gapChangeRateMax: 0.3, slopeEfficiencyMin: 0.6);
 
             Assert.Equal(EntryGateModel.GapMin, FailedFilter(Long(), allFail));
+        }
+
+        [Fact]
+        public void slope_efficiency_is_checked_after_the_gap_change() {
+            // It is an extra check after the existing three, not a replacement for any of them.
+            VwapFilterSettingsModel both = Filters(useGapChangeFilter: true, gapChangeRateMin: 0.2, gapChangeRateMax: 0.3,
+                slopeEfficiencyMin: 0.6);
+
+            Assert.Equal(EntryGateModel.GapChange, FailedFilter(Long(), both));
         }
     }
 }

@@ -10,6 +10,7 @@ namespace cAlgo.Robots;
 //   GapX         = GapRaw   / ATR
 //   SlopeRawX    = SlopeRaw / ATR
 //   SlopeRateX30 = SlopeRawX × 6/N
+//   SlopeEfficiency = SlopeRateX30_Selected / GapX_Selected   (docs/VWAP.docx)
 //
 // 6/N 不是新的交易条件，只是单位换算：M5 上 6 根 = 30 分钟，把任意 Lookback 的累计变化量
 // 折算成「等效 30 分钟变化速度」，N 不同的参数组才能共用同一个 SlopeRateMin。
@@ -43,6 +44,10 @@ public static class VwapStrongMetrics {
         metrics.SlopeRawXSelected = isM5 ? metrics.SlopeRawXM5 : metrics.SlopeRawXH1;
         metrics.SlopeRateXSelected = isM5 ? metrics.SlopeRateX30M5 : metrics.SlopeRateX30H1;
 
+        // The ATR cancels out, so M5 and H1 give the same efficiency; it still needs the selected ATR
+        // to be usable. A gap of 0 or less has no efficiency: NaN, which an enabled filter blocks.
+        metrics.SlopeEfficiency = Divide(metrics.SlopeRateXSelected, metrics.GapXSelected);
+
         // 扩口变化：现在的方向性开口减去 N 根之前的。多空都已经由 direction 统一成「顺势为正」，
         // 所以扩大恒为正、缩小恒为负，多空共用同一个区间（V1.1 第 3.4 节）。
         double gapBefore = direction * (reading.DailyVwapBefore - reading.WeeklyVwapBefore);
@@ -64,11 +69,12 @@ public static class VwapStrongMetrics {
         return lookbackN >= 1 ? BarsPer30Minutes / lookbackN : double.NaN;
     }
 
-    private static double Divide(double value, double atr) {
-        if (!IsUsable(value) || !IsUsable(atr) || atr <= 0.0)
+    // Every divisor here (an ATR, the gap) is meaningful only when positive.
+    private static double Divide(double value, double divisor) {
+        if (!IsUsable(value) || !IsUsable(divisor) || divisor <= 0.0)
             return double.NaN;
 
-        return value / atr;
+        return value / divisor;
     }
 
     private static double Subtract(double left, double right) {

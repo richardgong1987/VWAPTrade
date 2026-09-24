@@ -51,6 +51,11 @@ public class VWAPTrade : Robot {
     [Parameter("扩口变化最大值 (30M标准化)", DefaultValue = 0.01, MinValue = -10.0, MaxValue = 10.0, Step = 0.01, Group = "VWAP过滤")]
     public double GapChangeRateMax { get; set; }
 
+    // Catches an ageing trend: the gap is already wide but the daily VWAP has slowed (docs/VWAP.docx).
+    // Defaults to 0 (off) so existing instances trade as before; 0.01 is the centre still to be validated.
+    [Parameter("斜率效率最小值 (0=关闭)", DefaultValue = 0.0, MinValue = 0.0, MaxValue = 1.0, Step = 0.001, Group = "VWAP过滤")]
+    public double SlopeEfficiencyMin { get; set; }
+
     // These property names stay so existing cTrader instances retain their saved values from the
     // earlier long-only version. The gate now counts the opposite side for both trade directions.
     [Parameter("信号前回看K线数", DefaultValue = 6, MinValue = 1, MaxValue = 200, Group = "反向黄线过滤")]
@@ -94,7 +99,8 @@ public class VWAPTrade : Robot {
     protected override void OnStart() {
         LaunchDebug();
 
-        var vwapFilters = new VwapFilterSettingsModel(VwapGapMin, VwapSlopeRateMin, UseGapChangeFilter, GapChangeRateMin, GapChangeRateMax);
+        var vwapFilters = new VwapFilterSettingsModel(VwapGapMin, VwapSlopeRateMin, UseGapChangeFilter, GapChangeRateMin, GapChangeRateMax,
+            SlopeEfficiencyMin);
         var oppositeDailyVwap = new OppositeDailyVwapSettingsModel(LongBelowDailyVwapLookbackBars, LongBelowDailyVwapBlockCount);
         var departureSettings = new DepartureSettingsModel(DepartureMin, DepartureConfirmBars, DepartureMaxWaitBars);
         string error = StartupCheck.FindError(Bars.TimeFrame.Equals(TimeFrame.Minute5), Bars.TimeFrame.ToString(), OrderLabel,
@@ -207,9 +213,9 @@ public class VWAPTrade : Robot {
         Print(
             "*****Trade settings | RiskPct: {0}, TakeProfitR: {1}, StopOffsetTicks: {2}, BreakevenTriggerR: {3}, BreakevenOffsetTicks: {4}",
             settings.RiskPct, settings.TakeProfitR, settings.StopOffsetTicks, settings.BreakevenTriggerR, settings.BreakevenOffsetTicks);
-        Print("*****VWAP filters | GapMin: {0}, SlopeRateMin: {1}, LookbackN: {2} ({3} min), Atr: {4} (0 = filter off)",
-            settings.VwapFilters.GapMin, settings.VwapFilters.SlopeRateMin, settings.VwapSlopeLookbackBars,
-            settings.VwapSlopeLookbackBars * 5, settings.Atr14Source);
+        Print("*****VWAP filters | GapMin: {0}, SlopeRateMin: {1}, SlopeEfficiencyMin: {2}, LookbackN: {3} ({4} min), Atr: {5} (0 = filter off)",
+            settings.VwapFilters.GapMin, settings.VwapFilters.SlopeRateMin, settings.VwapFilters.SlopeEfficiencyMin,
+            settings.VwapSlopeLookbackBars, settings.VwapSlopeLookbackBars * 5, settings.Atr14Source);
         Print("*****GapChange filter | Enabled: {0}, Min: {1}, Max: {2} | TradeDirection: {3}", settings.VwapFilters.UseGapChangeFilter,
             settings.VwapFilters.GapChangeRateMin, settings.VwapFilters.GapChangeRateMax, settings.TradeDirectionMode);
         Print("*****Opposite-side daily VWAP gate | Enabled: {0}, LookbackBars: {1}, BlockCount: {2}",

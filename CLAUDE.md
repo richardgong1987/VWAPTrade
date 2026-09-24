@@ -15,13 +15,18 @@ per-trade risk budget. Entry gates, in order:
 3. **Speed** — `SlopeRateX30 = direction × (daily − daily[N]) / ATR × 6/N ≥ SlopeRateMin`.
 4. **Gap change** — `GapChangeRateX30 = (gap − gap[N]) / ATR × 6/N` must sit inside
    `[GapChangeRateMin, GapChangeRateMax]`, but only when `UseGapChangeFilter` is on.
-5. **Opposite-side recovery** — `Vwap/OppositeDailyVwapGate.cs`: inspect the preceding closes in
+5. **Slope efficiency** — `docs/VWAP.docx`: `SlopeEfficiency = SlopeRateX30_Selected / GapX_Selected
+   ≥ SlopeEfficiencyMin`. It catches an ageing trend, where the gap is already wide but the daily
+   VWAP has gone flat. It is an extra check after gates 2–4, not a replacement for any of them.
+   A `GapX ≤ 0` has no efficiency and blocks. The ATR cancels out, so `ATR归一周期` does not
+   change it. 0.01 is only a candidate still to be validated, so it stays an optimisable parameter.
+6. **Opposite-side recovery** — `Vwap/OppositeDailyVwapGate.cs`: inspect the preceding closes in
    the same 06:00→06:00 daily-VWAP period. For a Buy, count closes below the daily VWAP; for a
    Sell, count closes above it. If at least the configured block count are on that opposite side,
    block the signal. Count only closes: a valid pattern has to touch the level, so a wick test
    would reject valid entries. The signal bar is excluded. A block count of 0 switches this gate
    off.
-6. **Departure** — `Vwap/DepartureTracker.cs`, from `docs/VWAP_Strong_V2.pdf` §6: the price must
+7. **Departure** — `Vwap/DepartureTracker.cs`, from `docs/VWAP_Strong_V2.pdf` §6: the price must
    first genuinely leave the daily VWAP before a pattern touching that line may be traded.
    `DepartureX = direction × (close − daily) / ATR ≥ DepartureMin` on `DepartureConfirmBars`
    consecutive closes, then it locks — the pullback it is waiting for must not undo it. The
@@ -30,13 +35,13 @@ per-trade risk budget. Entry gates, in order:
    an entry, a new daily period, the structure flipping or failing, or `DepartureMaxWaitBars`
    running out. Its structure direction comes from `daily vs weekly` alone, never from the close,
    because the pullback pushes the close back through the daily VWAP.
-7. **Direction** — `TradeDirectionGate` (All / LongOnly / ShortOnly), the last gate before sizing.
+8. **Direction** — `TradeDirectionGate` (All / LongOnly / ShortOnly), the last gate before sizing.
 
 `direction` is +1 long, −1 short, so a VWAP moving against the trade is negative and can never
-pass — never take an absolute value here. Gates 2, 3 and 6 switch off with a threshold of 0; gate 5
-switches off with a block count of 0. Gate 4 needs its own boolean, because a gap change is
-legitimately negative and its useful interval can straddle 0, so 0 cannot double as "off". Gates 6
-and 7 default to off/`All` and must leave results identical to a build without them. The `6/N` term
+pass — never take an absolute value here. Gates 2, 3, 5 and 7 switch off with a threshold of 0;
+gate 6 switches off with a block count of 0. Gate 4 needs its own boolean, because a gap change is
+legitimately negative and its useful interval can straddle 0, so 0 cannot double as "off". Gates 5,
+7 and 8 default to off/`All` and must leave results identical to a build without them. The `6/N` term
 is unit conversion, not a new condition:
 6 M5 bars = 30 minutes, so any lookback is expressed as an equivalent 30-minute speed and different
 `N` share one threshold. That is why the bot refuses to run on anything but M5. A threshold of 0
@@ -70,10 +75,11 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
 (suffixed `Model`):
 
 - `Vwap/` — `VwapPeriod` (when the VWAP resets), `TradingSession` (when orders may open — a
-  different clock, see above), `VwapStrongMetrics` (the GapX / SlopeRawX / SlopeRateX30 formulas),
-  `VwapStack` (gate 1 `ResolveSide` = Strong or not; gates 2–4 `FindFailedFilter`),
-  `OppositeDailyVwapGate` (gate 5, a side-aware recovery filter),
-  `DepartureTracker` (gate 6, the leave-then-return state machine),
+  different clock, see above), `VwapStrongMetrics` (the GapX / SlopeRawX / SlopeRateX30 /
+  SlopeEfficiency formulas),
+  `VwapStack` (gate 1 `ResolveSide` = Strong or not; gates 2–5 `FindFailedFilter`),
+  `OppositeDailyVwapGate` (gate 6, a side-aware recovery filter),
+  `DepartureTracker` (gate 7, the leave-then-return state machine),
   `StartupCheck` (parameter validation), `VwapCalculator` (pure accumulation) — all unit tested —
   plus the two classes that read the platform and feed them: `VwapSeries`, which caches one
   `VwapSampleModel` per closed bar and is the single source of VWAP values for drawing and
@@ -84,7 +90,7 @@ Behavior classes live beside the feature they serve; all data types live in `Mod
 - `Signals/` — `SignalDetector` returns the closed bar's signal or null. A signal needs a Strong
   bar (the stack alone, `VwapStack.ResolveSide(close, daily, weekly)`, returns Buy or Sell) and a
   pattern for that side touching the daily VWAP. It carries the first signal filter it fails
-  (`FailedFilter`: gap, speed, gap change, opposite-side recovery, Departure). `LevelPatternMatcher`
+  (`FailedFilter`: gap, speed, gap change, slope efficiency, opposite-side recovery, Departure). `LevelPatternMatcher`
   decides which candle pattern touches the key level; `HanJinSignals26` is the pattern classifier
   itself (a port — see below).
 - `Chart/` — `VwapLines` draws the three VWAP lines, `SignalMarkers` the entry markers.

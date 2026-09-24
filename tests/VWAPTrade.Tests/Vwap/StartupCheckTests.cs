@@ -5,7 +5,8 @@ namespace VWAPTrade.Tests.Vwap {
     // 启动校验。这些规则一旦失效，cBot 会带着一套算错的参数安静跑完整个回测 —— 所以宁可停下来。
     public class StartupCheckTests {
         private static VwapFilterSettingsModel Filters(bool use = false, double min = 0.0, double max = 0.0) =>
-            new(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: use, gapChangeRateMin: min, gapChangeRateMax: max);
+            new(gapMin: 0.0, slopeRateMin: 0.0, useGapChangeFilter: use, gapChangeRateMin: min, gapChangeRateMax: max,
+                slopeEfficiencyMin: 0.0);
 
         private static DepartureSettingsModel Departure(double min = 0.0, int confirmBars = 3, int maxWaitBars = 0) =>
             new(departureMin: min, confirmBars: confirmBars, maxWaitBars: maxWaitBars);

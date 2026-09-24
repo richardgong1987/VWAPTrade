@@ -7,9 +7,12 @@ namespace cAlgo.Robots;
 //   ② 距离：GapMin > 0 时，要求 GapX_Selected ≥ GapMin。
 //   ③ 速度：SlopeRateMin > 0 时，要求 SlopeRateX_Selected ≥ SlopeRateMin。
 //   ④ 扩口：UseGapChangeFilter 开启时，要求 Min ≤ GapChangeRateX30_Selected ≤ Max（闭区间）。
+//   ⑤ Slope efficiency (docs/VWAP.docx): with SlopeEfficiencyMin > 0, require
+//      SlopeRateX_Selected / GapX_Selected ≥ SlopeEfficiencyMin. It adds to ②–④, never replaces them.
 //      —— FindFailedFilter，按这个顺序报出第一道没过的。
 //
-// ②③ 阈值填 0 就是那一道闸门完全关闭；④ 用独立开关（GapChange 允许负值，0 不能当关闭值）。
+// ②③⑤ switch off completely at a threshold of 0; ④ has its own switch, because a gap change may be
+// negative and 0 cannot mean off.
 // 关闭时即使 ATR 或回看数据缺失也不能因此挡掉交易，否则「关掉的过滤器」反而成了新的过滤条件。
 // 公式见 VwapStrongMetrics。方向许可（LongOnly / ShortOnly）不在这里，那是下单前的最后一道，
 // 见 OrderExecutor。纯比较，没有 cAlgo 依赖，有单元测试。
@@ -29,7 +32,7 @@ public static class VwapStack {
         return SignalSideModel.None;
     }
 
-    // The first of filters ②–④ that fails, or None when all of them pass. The metrics are already
+    // The first of filters ②–⑤ that fails, or None when all of them pass. The metrics are already
     // measured in the Strong side's direction (VwapStrongMetrics.Compute), so no side is needed here.
     public static EntryGateModel FindFailedFilter(VwapStrongMetricsModel metrics, VwapFilterSettingsModel filters) {
         if (!PassesFilter(metrics.GapXSelected, filters.GapMin))
@@ -40,6 +43,9 @@ public static class VwapStack {
 
         if (!PassesGapChangeFilter(metrics.GapChangeRateX30Selected, filters))
             return EntryGateModel.GapChange;
+
+        if (!PassesFilter(metrics.SlopeEfficiency, filters.SlopeEfficiencyMin))
+            return EntryGateModel.SlopeEfficiency;
 
         return EntryGateModel.None;
     }

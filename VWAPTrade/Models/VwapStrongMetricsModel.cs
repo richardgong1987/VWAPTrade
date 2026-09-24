@@ -46,4 +46,8 @@ public class VwapStrongMetricsModel {
 
     // 实际参与过滤的那一套。
     public double GapChangeRateX30Selected { get; set; } = double.NaN;
+
+    // SlopeRateX_Selected / GapX_Selected: how fast the daily VWAP still moves for the gap it has
+    // already opened. A low value is an ageing trend, wide but slowing (docs/VWAP.docx).
+    public double SlopeEfficiency { get; set; } = double.NaN;
 }
