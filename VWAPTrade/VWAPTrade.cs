@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using cAlgo.API;
 
@@ -98,12 +100,17 @@ public class VWAPTrade : Robot {
     private OrderExecutor _orderExecutor;
     private StrongSignalCsvLogger _strongSignalLog;
     private VwapLines _vwapLines;
+
     private SignalMarkers _signalMarkers;
+
+    // Optimisation only: GetFitness checks the whole run year by year, and GetFitnessArgs does not
+    // carry the window, so the robot has to remember where it started.
+    private DateTime _optimisationWindowStart;
 
     // 组合根：读参数 → 校验 → 分三路组装（找信号、下单、画图）。这里只做接线，不放任何规则。
     protected override void OnStart() {
+        _optimisationWindowStart = Server.Time;
         LaunchDebug();
-
         var vwapFilters = new VwapFilterSettingsModel(VwapGapMin, VwapSlopeRateMin, UseGapChangeFilter, GapChangeRateMin, GapChangeRateMax,
             SlopeEfficiencyMin, ExpansionEfficiencyMin);
         var oppositeDailyVwap = new OppositeDailyVwapSettingsModel(LongBelowDailyVwapLookbackBars, LongBelowDailyVwapBlockCount);
@@ -148,8 +155,7 @@ public class VWAPTrade : Robot {
         var csvLogger = new TradeCsvLogger(new TradeCsvFile(ResetTradeLogOnStart, ResolveReportsDirectory(), FileName));
         Print("****CSV logger path: {0}", csvLogger.FilePath);
 
-        _strongSignalLog = new StrongSignalCsvLogger(Path.GetDirectoryName(csvLogger.FilePath), ResetTradeLogOnStart,
-            SymbolName, settings);
+        _strongSignalLog = new StrongSignalCsvLogger(Path.GetDirectoryName(csvLogger.FilePath), ResetTradeLogOnStart, SymbolName, settings);
         Print("****Debug CSV path: {0}", _strongSignalLog.FilePath);
 
         var symbolModel = new CAlgoSymbolModel(Symbol);
@@ -218,15 +224,15 @@ public class VWAPTrade : Robot {
         Print(
             "*****Trade settings | RiskPct: {0}, TakeProfitR: {1}, StopOffsetTicks: {2}, BreakevenTriggerR: {3}, BreakevenOffsetTicks: {4}",
             settings.RiskPct, settings.TakeProfitR, settings.StopOffsetTicks, settings.BreakevenTriggerR, settings.BreakevenOffsetTicks);
-        Print("*****VWAP filters | GapMin: {0}, SlopeRateMin: {1}, SlopeEfficiencyMin: {2}, ExpansionEfficiencyMin: {3}, " +
-              "LookbackN: {4} ({5} min), Atr: {6} (0 = filter off)",
-            settings.VwapFilters.GapMin, settings.VwapFilters.SlopeRateMin, settings.VwapFilters.SlopeEfficiencyMin,
-            settings.VwapFilters.ExpansionEfficiencyMin, settings.VwapSlopeLookbackBars, settings.VwapSlopeLookbackBars * 5,
-            settings.Atr14Source);
+        Print(
+            "*****VWAP filters | GapMin: {0}, SlopeRateMin: {1}, SlopeEfficiencyMin: {2}, ExpansionEfficiencyMin: {3}, " +
+            "LookbackN: {4} ({5} min), Atr: {6} (0 = filter off)", settings.VwapFilters.GapMin, settings.VwapFilters.SlopeRateMin,
+            settings.VwapFilters.SlopeEfficiencyMin, settings.VwapFilters.ExpansionEfficiencyMin, settings.VwapSlopeLookbackBars,
+            settings.VwapSlopeLookbackBars * 5, settings.Atr14Source);
         Print("*****GapChange filter | Enabled: {0}, Min: {1}, Max: {2} | TradeDirection: {3}", settings.VwapFilters.UseGapChangeFilter,
             settings.VwapFilters.GapChangeRateMin, settings.VwapFilters.GapChangeRateMax, settings.TradeDirectionMode);
-        Print("*****Opposite-side daily VWAP gate | Enabled: {0}, LookbackBars: {1}, BlockCount: {2}",
-            settings.OppositeDailyVwap.IsEnabled, settings.OppositeDailyVwap.LookbackBars, settings.OppositeDailyVwap.BlockCount);
+        Print("*****Opposite-side daily VWAP gate | Enabled: {0}, LookbackBars: {1}, BlockCount: {2}", settings.OppositeDailyVwap.IsEnabled,
+            settings.OppositeDailyVwap.LookbackBars, settings.OppositeDailyVwap.BlockCount);
         Print("*****Departure gate | Enabled: {0}, Min: {1}, ConfirmBars: {2}, MaxWaitBars: {3} (0 = no limit)",
             departureSettings.IsEnabled, departureSettings.DepartureMin, departureSettings.ConfirmBars, departureSettings.MaxWaitBars);
 
@@ -256,5 +262,19 @@ public class VWAPTrade : Robot {
             return "trading_reports";
 
         return Account.IsLive ? "release_trading_reports" : "simulate_trading_reports";
+    }
+
+    // Called once per pass by the desktop Optimisation tab only — a plain backtest, CLI or GUI,
+    // never calls it. Passes with a losing (or idle) calendar year sink below every survivor;
+    // survivors keep cTrader's own score. See AnnualFitness.
+    protected override double GetFitness(GetFitnessArgs args) {
+        List<ClosedTradeModel> closedTrades = args.History
+            .Select(trade => new ClosedTradeModel(trade.ClosingTime, trade.NetProfit)).ToList();
+
+        var stats = new FitnessStatsModel {
+            NetProfit = args.NetProfit, WinningTrades = args.WinningTrades, MaxEquityDrawdownPercent = args.MaxEquityDrawdownPercentages
+        };
+
+        return new AnnualFitness(_optimisationWindowStart, Server.Time).Calculate(closedTrades, stats);
     }
 }
